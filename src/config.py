@@ -11,6 +11,8 @@ INPUT_DIR = DATA_DIR / "input"
 TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
 RESULTS_DIR = DATA_DIR / "results"
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
+PROFILES_DIR = PROJECT_ROOT / "profiles"
+DEFAULT_PROFILE = None  # имя профиля (без .yaml) или None
 
 # GigaAM
 GIGAAM_MODEL = "v3_e2e_rnnt"

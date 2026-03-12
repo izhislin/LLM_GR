@@ -14,6 +14,9 @@
 - `agent_docs/guides/logging.md` — логирование скриптов/интеграций.
 - `agent_docs/guides/archiving-and-temp.md` — архивация и временные файлы.
 
+## Профили коррекции
+- `profiles/gravitel.yaml` — профиль Гравител (собственные записи); паттерны бренда, термины, llm_context.
+
 ## Шаблоны
 - `agent_docs/templates/architecture.md`
 - `agent_docs/templates/adr.md`

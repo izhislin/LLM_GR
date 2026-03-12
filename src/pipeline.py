@@ -10,7 +10,8 @@ from src.audio_splitter import split_stereo_to_mono, get_audio_info
 from src.transcriber import transcribe_channel
 from src.dialogue_builder import build_dialogue, dialogue_to_text
 from src.llm_analyzer import analyze_dialogue
-from src.config import INPUT_DIR, TRANSCRIPTS_DIR, RESULTS_DIR, PROMPTS_DIR
+from src.text_corrector import load_profile, correct_text
+from src.config import INPUT_DIR, TRANSCRIPTS_DIR, RESULTS_DIR, PROMPTS_DIR, DEFAULT_PROFILE
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ def process_audio_file(
     audio_path: Path,
     output_dir: Path | None = None,
     prompts_dir: Path | None = None,
+    profile_name: str | None = DEFAULT_PROFILE,
 ) -> dict:
     """Обработать один аудиофайл через весь пайплайн.
 
@@ -26,6 +28,7 @@ def process_audio_file(
         audio_path: Путь к стерео аудиофайлу.
         output_dir: Куда сохранить результат (по умолчанию — data/results/).
         prompts_dir: Директория с промптами (по умолчанию — prompts/).
+        profile_name: Имя профиля коррекции (без .yaml) или None.
 
     Returns:
         Словарь с полным результатом анализа.
@@ -34,6 +37,7 @@ def process_audio_file(
     output_dir = Path(output_dir or RESULTS_DIR)
     prompts_dir = Path(prompts_dir or PROMPTS_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)
+    profile = load_profile(profile_name)
 
     logger.info("=== Обработка: %s ===", audio_path.name)
 
@@ -61,7 +65,10 @@ def process_audio_file(
     dialogue = build_dialogue(operator_utterances, client_utterances)
     dialogue_text = dialogue_to_text(dialogue)
 
-    # Сохраняем транскрипт
+    # 4.5. Коррекция транскрипта
+    dialogue_text = correct_text(dialogue_text, profile)
+
+    # Сохраняем транскрипт (уже после коррекции)
     transcript_file = transcripts_dir / f"{audio_path.stem}.txt"
     transcript_file.write_text(dialogue_text, encoding="utf-8")
     logger.info("Транскрипт сохранён: %s", transcript_file)
@@ -91,22 +98,25 @@ def process_audio_file(
 
 def main():
     """CLI-точка входа."""
+    import argparse
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    if len(sys.argv) < 2:
-        print("Использование: python -m src.pipeline <путь_к_аудиофайлу>")
-        print(f"  или положите файлы в {INPUT_DIR}/")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Обработка аудиофайла звонка")
+    parser.add_argument("audio", help="Путь к стерео аудиофайлу")
+    parser.add_argument("--profile", default=DEFAULT_PROFILE,
+                        help="Имя профиля коррекции (без .yaml)")
+    args = parser.parse_args()
 
-    audio_path = Path(sys.argv[1])
+    audio_path = Path(args.audio)
     if not audio_path.exists():
         print(f"Файл не найден: {audio_path}")
         sys.exit(1)
 
-    result = process_audio_file(audio_path)
+    result = process_audio_file(audio_path, profile_name=args.profile)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
