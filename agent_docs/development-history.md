@@ -34,3 +34,30 @@
 - `prompts/*.md`: промпты для суммаризации, оценки качества, извлечения данных
 - `src/pipeline.py`: оркестратор пайплайна (CLI: `python -m src.pipeline <file>`)
 - 16 тестов, все проходят (TDD, моки для GigaAM и Ollama)
+
+### 2026-03-12 — Настройка SSH-доступа к серверу
+
+- Сервер `gravitel-ai-lab`: `212.24.45.138:16380`, пользователь `aiadmin`
+- Создан отдельный SSH-ключ `~/.ssh/id_ed25519_ailab` (без passphrase) для автоматизации
+- Настроен алиас `ai-lab` в `~/.ssh/config` — подключение: `ssh ai-lab`
+- Публичный ключ добавлен в `authorized_keys` на сервере
+- Подключение по ключу проверено и работает
+- Документация: `agent_docs/guides/server-access.md`
+
+### 2026-03-12 — Развёртывание и настройка сервера
+
+- **GPU:** RTX 5060 Ti 16GB (Blackwell, sm_120), драйвер 590.48, CUDA 13.1
+- **PyTorch:** Обновлён с 2.5.1+cu124 до 2.12.0.dev+cu128 (nightly) — стабильные релизы не поддерживают sm_120 (Blackwell). Wheel скачан локально на Mac и передан по SCP (CDN PyTorch таймаутит с сервера)
+- **GigaAM v3:** Переустановлен из GitHub (`salute-developers/GigaAM`) — PyPI-пакет (0.1.0) не содержит v3-модели. Установлен с `--no-deps` для обхода ограничения `torch<2.9`
+- **Ollama:** v0.17.7, создан systemd-сервис вручную (установщик не довёл до конца). Модель `qwen3:8b` (5.2 GB) скачана
+- **Проверено:** PyTorch на GPU (matmul test), GigaAM v3 загружается на cuda:0, Ollama API отвечает
+- ADR: `agent_docs/adr.md` — решения по PyTorch nightly и GigaAM из GitHub
+
+### 2026-03-12 — Первый успешный прогон пайплайна
+
+- Тестовый файл: `2026-03-10_14-39-52_o_732-84996860315.mp3` (65 сек, стерео, 8kHz)
+- Полный пайплайн: split → transcribe (2 канала) → summarize → quality → extract → JSON
+- Время: ~70 сек (транскрибация ~7 сек, LLM ~60 сек)
+- Патчи для совместимости: pyannote `use_auth_token→token` (huggingface_hub 1.6.0 несовместим), GigaAM `from_pretrained` с HF-токеном вместо локального пути
+- Требуется `HF_TOKEN` для pyannote/segmentation-3.0 (VAD для longform)
+- Результат: `data/results/2026-03-10_14-39-52_o_732-84996860315.json`
