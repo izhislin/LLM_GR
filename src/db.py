@@ -96,7 +96,7 @@ def init_db(db_path: str) -> sqlite3.Connection:
     Returns:
         Соединение с установленным row_factory = sqlite3.Row.
     """
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA)
     conn.commit()
