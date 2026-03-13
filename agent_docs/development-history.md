@@ -9,6 +9,46 @@
 
 ## Записи
 
+### 2026-03-13 — Web API интеграция (полная реализация)
+
+- **Архитектура:** монолит FastAPI + asyncio + ThreadPoolExecutor. Webhook-приёмник + polling каждые 10 мин
+- **Новые модули (8 файлов):**
+  - `src/domain_config.py`: датаклассы `CallFilters`, `DomainConfig`, загрузка из `config/domains.yaml`
+  - `src/gravitel_api.py`: async HTTP-клиент для CRM API Гравител (history, accounts, groups, download)
+  - `src/call_filter.py`: фильтрация звонков по длительности, типу, наличию записи
+  - `src/db.py`: SQLite-слой (5 таблиц, 16 CRUD-функций, `check_same_thread=False` для FastAPI)
+  - `src/web/routes/webhook.py`: POST `/webhook/{domain}/history` (auth, dedup, filtering)
+  - `src/web/routes/api.py`: REST API (`/api/calls`, `/api/stats`, `/api/domains`, etc.)
+  - `src/worker.py`: `CallWorker` — скачивание записей + запуск pipeline
+  - `src/web/app.py`: FastAPI lifespan, scheduler loop, directory sync, manual sync endpoint
+- **Web UI:** Jinja2 + vanilla CSS/JS (base.html, index.html, call_detail.html, style.css, app.js)
+  - Таблица звонков с фильтрами (домен, направление, статус, даты), пагинация, автообновление 30 сек
+  - Страница деталей: метаданные, оценка качества, резюме, извлечённые данные, транскрипт
+- **Тесты:** 139 тестов (было 34), все проходят. Покрытие: DB (41), API client (12), filter (9), webhook (6), REST API (8), worker (3), integration (2), domain config (11), остальное (47)
+- **Config:** `config/domains.yaml`, `.env.example`, обновлён `.gitignore`
+- **Дизайн:** `docs/plans/2026-03-13-web-api-integration-design.md`
+- **План:** `docs/plans/2026-03-13-web-api-integration-plan.md`
+
+### 2026-03-13 — Модуль базы данных (SQLite)
+
+- Создан `src/db.py`: синхронный SQLite-слой для хранения звонков, обработки, операторов и отделов
+- 5 таблиц: `domains`, `calls`, `processing`, `operators`, `departments`
+- 3 индекса: `idx_calls_domain`, `idx_calls_started`, `idx_processing_status`
+- 16 функций: `init_db`, `insert_call` (INSERT OR IGNORE), `get_call`, `list_calls` (JOIN + фильтры + пагинация), `get_calls_count`, `insert_processing`, `get_processing`, `update_processing_status` (auto started_at/completed_at/retry_count), `get_pending_calls`, `get_retryable_calls`, `upsert_operator`, `get_operator_name`, `list_operators`, `upsert_department`, `list_departments`, `update_domain_poll_time`
+- Создан `tests/test_web/test_db.py`: 37 тестов (TDD), покрытие: init, CRUD, дубликаты, фильтры, пагинация, статусы, retry, операторы, отделы, поллинг доменов
+- Все функции проверены через ручной интеграционный тест (pytest недоступен локально на macOS)
+
+### 2026-03-13 — HTTP-клиент Gravitel API
+
+- Создан `src/gravitel_api.py`: асинхронный HTTP-клиент (`httpx.AsyncClient`) для CRM API Гравител
+- `GravitelClient`: init(domain, api_key, timeout), close(), 4 async-метода
+- `fetch_history()`: POST с period/start/end/type/limit, возвращает список звонков
+- `fetch_accounts()`, `fetch_groups()`: GET-запросы для справочников домена
+- `download_record()`: скачивание файла записи с сохранением на диск (создаёт parent dirs)
+- Все методы передают `X-API-KEY` заголовок и вызывают `raise_for_status()`
+- Создан `tests/test_web/test_gravitel_api.py`: 12 тестов (TDD, AsyncMock + httpx.Response)
+- Тесты: возврат данных, передача auth-заголовка, параметры запроса, сохранение файла, ошибки 401/500
+
 ### 2026-03-13 — Модуль фильтрации звонков
 
 - Создан `src/call_filter.py`: функция `filter_call(call, filters)` — последовательная проверка звонка по фильтрам домена

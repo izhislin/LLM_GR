@@ -30,6 +30,9 @@ pytest-asyncio>=0.23
 # Metrics
 prometheus_client>=0.20
 
+# Docs: конвертация .md → HTML (docs/plans/build_plan_pages.py)
+markdown>=3.5
+
 # Utilities (уже в составе gigaam, но фиксируем)
 torch>=2.0
 torchaudio>=2.0
