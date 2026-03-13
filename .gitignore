@@ -96,6 +96,23 @@ coverage/
 .npm/
 
 # ==========================
+# Project-specific
+# ==========================
+
+# Environment secrets
+.env
+
+# Audio downloads
+data/audio/
+
+# SQLite databases
+*.db
+*.db-journal
+
+# Temp inbox
+temp_inbox/
+
+# ==========================
 # Go / Lua / Misc (Опционально)
 # ==========================
 

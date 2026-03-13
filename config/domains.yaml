@@ -1,0 +1,12 @@
+domains:
+  gravitel.aicall.ru:
+    api_key_env: "GRAVITEL_API_KEY"
+    profile: "gravitel"
+    enabled: true
+    polling_interval_min: 10
+    filters:
+      min_duration_sec: 20
+      max_duration_sec: 1500
+      call_types: ["in", "out"]
+      only_with_record: true
+      results: ["success"]
