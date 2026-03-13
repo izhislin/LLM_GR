@@ -56,6 +56,46 @@ EOF
 | Python | 3.12.3 | venv: `~/venv_transcribe` |
 | ffmpeg | 6.1.1 | |
 | CUDA | 13.1 (driver) / 12.8 (PyTorch runtime) | |
+| node_exporter | 1.7.0 | apt, systemd: `prometheus-node-exporter` |
+| nvidia_gpu_exporter | 1.4.1 | .deb, systemd: `nvidia_gpu_exporter` |
+
+## Мониторинг (Prometheus)
+
+### Сервисы на сервере
+
+| Сервис | Порт | systemd unit | Статус |
+|---|---|---|---|
+| node_exporter | `9100` | `prometheus-node-exporter` | Установлен, active |
+| nvidia_gpu_exporter | `9835` | `nvidia_gpu_exporter` | Установлен (v1.4.1, .deb), active |
+| pipeline metrics | `8000` | — (поднимается пайплайном) | При запуске `python -m src.pipeline` |
+| Ollama metrics | `11434` | — | Не поддерживается в v0.17.7, порт зарезервирован |
+
+### Маппинг портов MikroTik → сервер
+
+| Внешний порт | → Внутренний порт | Сервис |
+|---|---|---|
+| `42363` | → `9100` | node_exporter |
+| `42364` | → `9835` | nvidia_gpu_exporter |
+| `42365` | → `8000` | pipeline metrics |
+| `42366` | → `11434` | Ollama metrics (зарезервирован) |
+
+### Prometheus scrape config
+
+```yaml
+scrape_configs:
+  - job_name: 'ai-lab-node'
+    static_configs:
+      - targets: ['212.24.45.138:42363']
+
+  - job_name: 'ai-lab-gpu'
+    static_configs:
+      - targets: ['212.24.45.138:42364']
+
+  - job_name: 'ai-lab-pipeline'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['212.24.45.138:42365']
+```
 
 ## Примечания
 

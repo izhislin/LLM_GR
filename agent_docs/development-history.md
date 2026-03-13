@@ -9,6 +9,14 @@
 
 ## Записи
 
+### 2026-03-13 — Prometheus-экспортёры на сервере
+
+- Установлен `node_exporter` v1.7.0 (apt) — CPU, RAM, disk, network
+- Установлен `nvidia_gpu_exporter` v1.4.1 (.deb, скачан локально и передан по SCP) — GPU util, memory, temp, power
+- Ollama v0.17.7 не поддерживает встроенные Prometheus-метрики (`OLLAMA_METRICS` не существует), порт зарезервирован
+- Маппинг MikroTik: 42363→9100, 42364→9835, 42365→8000, 42366→11434
+- Документация: `agent_docs/guides/server-access.md` (секция «Мониторинг»)
+
 ### 2026-03-13 — Prometheus-метрики в пайплайне
 
 - Создан `src/metrics.py`: 8 Prometheus-метрик (pipeline timing, RTF, файлы, Ollama tokens/sec, ретраи)
