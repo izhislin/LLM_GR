@@ -189,7 +189,18 @@ function renderQualityScore(qs) {
 
     let barsHtml = '';
     for (const [key, label] of Object.entries(criteriaLabels)) {
-        const val = qs[key];
+        // Support both flat (greeting: 3) and nested (criteria.greeting.score: 8) formats
+        let val = qs[key];
+        let comment = '';
+        if (val != null && typeof val === 'object') {
+            comment = val.comment || '';
+            val = val.score;
+        }
+        if (qs.criteria?.[key]) {
+            const c = qs.criteria[key];
+            val = c.score ?? c;
+            comment = c.comment || '';
+        }
         if (val == null) continue;
         const pct = (val / 10) * 100;
         barsHtml += `
@@ -199,7 +210,8 @@ function renderQualityScore(qs) {
                     <div class="criteria-bar ${scoreClass(val)}" style="width:${pct}%"></div>
                 </div>
                 <span class="criteria-value">${val}</span>
-            </div>`;
+            </div>
+            ${comment ? `<div class="criteria-comment">${escHtml(comment)}</div>` : ''}`;
     }
 
     const ivrNote = qs.is_ivr ? '<div class="ivr-badge">IVR / Автоответчик</div>' : '';

@@ -213,6 +213,13 @@ tr.clickable { cursor: pointer; }
     font-size: 0.9rem;
     flex-shrink: 0;
 }
+.criteria-comment {
+    font-size: 0.8rem;
+    color: #888;
+    padding-left: 122px;
+    margin-top: -4px;
+    margin-bottom: 4px;
+}
 
 /* ── Summary ──────────────────────────────────────────────────────────────── */
 
