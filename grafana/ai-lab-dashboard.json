@@ -37,7 +37,7 @@
       "id": 1,
       "title": "CPU",
       "type": "gauge",
-      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "gridPos": { "h": 5, "w": 3, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "defaults": {
@@ -66,7 +66,7 @@
       "id": 2,
       "title": "RAM",
       "type": "gauge",
-      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "gridPos": { "h": 5, "w": 3, "x": 3, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "defaults": {
@@ -92,10 +92,39 @@
       ]
     },
     {
+      "id": 8,
+      "title": "Disk",
+      "type": "gauge",
+      "gridPos": { "h": 5, "w": 3, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "expr": "1 - (node_filesystem_avail_bytes{job=\"ai-lab-node\",mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"ai-lab-node\",mountpoint=\"/\"})",
+          "legendFormat": "Disk"
+        }
+      ]
+    },
+    {
       "id": 3,
       "title": "GPU Utilization",
       "type": "gauge",
-      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "gridPos": { "h": 5, "w": 3, "x": 9, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "defaults": {
@@ -298,21 +327,24 @@
     },
     {
       "id": 12,
-      "title": "Load Average & Disk",
+      "title": "Load Average",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
+      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 7 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "defaults": {
           "min": 0,
-          "custom": { "fillOpacity": 10, "lineWidth": 1, "spanNulls": true }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Disk Free" },
-            "properties": [{ "id": "unit", "value": "bytes" }, { "id": "custom.axisPlacement", "value": "right" }]
+          "custom": { "fillOpacity": 10, "lineWidth": 1, "spanNulls": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 6 },
+              { "color": "red", "value": 12 }
+            ]
           }
-        ]
+        },
+        "overrides": []
       },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
@@ -325,8 +357,59 @@
           "legendFormat": "Load 5m"
         },
         {
+          "expr": "node_load15{job=\"ai-lab-node\"}",
+          "legendFormat": "Load 15m"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Disk Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "fillOpacity": 30, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Total" },
+            "properties": [
+              { "id": "custom.fillOpacity", "value": 0 },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "color", "value": { "fixedColor": "white", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Used" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Free" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "node_filesystem_size_bytes{job=\"ai-lab-node\",mountpoint=\"/\"}",
+          "legendFormat": "Total"
+        },
+        {
+          "expr": "node_filesystem_size_bytes{job=\"ai-lab-node\",mountpoint=\"/\"} - node_filesystem_avail_bytes{job=\"ai-lab-node\",mountpoint=\"/\"}",
+          "legendFormat": "Used"
+        },
+        {
           "expr": "node_filesystem_avail_bytes{job=\"ai-lab-node\",mountpoint=\"/\"}",
-          "legendFormat": "Disk Free"
+          "legendFormat": "Free"
         }
       ]
     },
