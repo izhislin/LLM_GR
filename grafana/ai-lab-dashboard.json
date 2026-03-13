@@ -1,0 +1,661 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "9.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus" },
+    { "type": "panel", "id": "timeseries", "name": "Time series" },
+    { "type": "panel", "id": "stat", "name": "Stat" },
+    { "type": "panel", "id": "gauge", "name": "Gauge" },
+    { "type": "panel", "id": "bargauge", "name": "Bar gauge" }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "id": 1,
+      "title": "CPU",
+      "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\",job=\"ai-lab-node\"}[5m]))",
+          "legendFormat": "CPU"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "RAM",
+      "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "expr": "1 - (node_memory_MemAvailable_bytes{job=\"ai-lab-node\"} / node_memory_MemTotal_bytes{job=\"ai-lab-node\"})",
+          "legendFormat": "RAM"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "GPU Utilization",
+      "type": "gauge",
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "expr": "nvidia_smi_utilization_gpu_ratio{job=\"ai-lab-gpu\"}",
+          "legendFormat": "GPU"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "GPU Temp",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 3, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        {
+          "expr": "nvidia_smi_temperature_gpu{job=\"ai-lab-gpu\"}",
+          "legendFormat": "GPU Temp"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Pipeline RTF",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 3, "x": 15, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        {
+          "expr": "pipeline_rtf{job=\"ai-lab-pipeline\"}",
+          "legendFormat": "RTF"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Files Processed",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 3, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "expr": "pipeline_files_total{status=\"ok\",job=\"ai-lab-pipeline\"}",
+          "legendFormat": "OK"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Tokens/sec",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 3, "x": 21, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "green", "value": 20 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "targets": [
+        {
+          "expr": "ollama_tokens_per_second{job=\"ai-lab-pipeline\"}",
+          "legendFormat": "tok/s"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "id": 200,
+      "title": "Server Resources",
+      "type": "row"
+    },
+    {
+      "id": 10,
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "custom": { "fillOpacity": 20, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\",job=\"ai-lab-node\"}[5m]))",
+          "legendFormat": "Total CPU"
+        },
+        {
+          "expr": "avg by (cpu) (1 - rate(node_cpu_seconds_total{mode=\"idle\",job=\"ai-lab-node\"}[5m]))",
+          "legendFormat": "Core {{cpu}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "fillOpacity": 20, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes{job=\"ai-lab-node\"}",
+          "legendFormat": "Total"
+        },
+        {
+          "expr": "node_memory_MemTotal_bytes{job=\"ai-lab-node\"} - node_memory_MemAvailable_bytes{job=\"ai-lab-node\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "node_memory_SwapTotal_bytes{job=\"ai-lab-node\"} - node_memory_SwapFree_bytes{job=\"ai-lab-node\"}",
+          "legendFormat": "Swap Used"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Load Average & Disk",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Disk Free" },
+            "properties": [{ "id": "unit", "value": "bytes" }, { "id": "custom.axisPlacement", "value": "right" }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "node_load1{job=\"ai-lab-node\"}",
+          "legendFormat": "Load 1m"
+        },
+        {
+          "expr": "node_load5{job=\"ai-lab-node\"}",
+          "legendFormat": "Load 5m"
+        },
+        {
+          "expr": "node_filesystem_avail_bytes{job=\"ai-lab-node\",mountpoint=\"/\"}",
+          "legendFormat": "Disk Free"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "id": 300,
+      "title": "GPU — RTX 5060 Ti 16GB",
+      "type": "row"
+    },
+    {
+      "id": 20,
+      "title": "GPU Utilization",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 30, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "nvidia_smi_utilization_gpu_ratio{job=\"ai-lab-gpu\"}",
+          "legendFormat": "GPU Compute"
+        },
+        {
+          "expr": "nvidia_smi_utilization_memory_ratio{job=\"ai-lab-gpu\"}",
+          "legendFormat": "Memory Bus"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "VRAM Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "fillOpacity": 30, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "nvidia_smi_memory_total_bytes{job=\"ai-lab-gpu\"}",
+          "legendFormat": "Total (16 GB)"
+        },
+        {
+          "expr": "nvidia_smi_memory_used_bytes{job=\"ai-lab-gpu\"}",
+          "legendFormat": "Used"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Temperature",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "spanNulls": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "nvidia_smi_temperature_gpu{job=\"ai-lab-gpu\"}",
+          "legendFormat": "GPU Temp"
+        },
+        {
+          "expr": "nvidia_smi_temperature_gpu_tlimit{job=\"ai-lab-gpu\"}",
+          "legendFormat": "Throttle Limit"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Power Draw",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "min": 0,
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "nvidia_smi_power_draw_watts{job=\"ai-lab-gpu\"}",
+          "legendFormat": "Power Draw"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "id": 400,
+      "title": "Pipeline Performance",
+      "type": "row"
+    },
+    {
+      "id": 30,
+      "title": "Stage Duration (avg, last 15m)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "orange", "value": 30 },
+              { "color": "red", "value": 60 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "expr": "rate(pipeline_stage_seconds_sum{job=\"ai-lab-pipeline\"}[15m]) / rate(pipeline_stage_seconds_count{job=\"ai-lab-pipeline\"}[15m])",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "title": "Processing Time per File",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "drawStyle": "bars", "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(pipeline_processing_seconds_sum{job=\"ai-lab-pipeline\"}[5m]) / rate(pipeline_processing_seconds_count{job=\"ai-lab-pipeline\"}[5m])",
+          "legendFormat": "Avg processing time"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(pipeline_processing_seconds_bucket{job=\"ai-lab-pipeline\"}[15m]))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "RTF & Files/hour",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "spanNulls": true }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Files/hour" },
+            "properties": [{ "id": "custom.axisPlacement", "value": "right" }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "pipeline_rtf{job=\"ai-lab-pipeline\"}",
+          "legendFormat": "RTF"
+        },
+        {
+          "expr": "rate(pipeline_files_total{status=\"ok\",job=\"ai-lab-pipeline\"}[15m]) * 3600",
+          "legendFormat": "Files/hour"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "id": 500,
+      "title": "LLM (Ollama / Qwen3-8B)",
+      "type": "row"
+    },
+    {
+      "id": 40,
+      "title": "Tokens/sec",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "spanNulls": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "green", "value": 20 }
+            ]
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "ollama_tokens_per_second{job=\"ai-lab-pipeline\"}",
+          "legendFormat": "Tokens/sec"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "title": "Token Throughput",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": { "fillOpacity": 20, "lineWidth": 1, "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(ollama_prompt_tokens_total{job=\"ai-lab-pipeline\"}[5m]) * 60",
+          "legendFormat": "Prompt tokens/min"
+        },
+        {
+          "expr": "rate(ollama_generated_tokens_total{job=\"ai-lab-pipeline\"}[5m]) * 60",
+          "legendFormat": "Generated tokens/min"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "title": "Errors & Retries",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": { "fillOpacity": 30, "lineWidth": 2, "drawStyle": "bars", "spanNulls": true }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Errors" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Retries" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "increase(pipeline_files_total{status=\"error\",job=\"ai-lab-pipeline\"}[15m])",
+          "legendFormat": "Errors"
+        },
+        {
+          "expr": "increase(ollama_retries_total{job=\"ai-lab-pipeline\"}[15m])",
+          "legendFormat": "Retries"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["ai-lab", "transcription", "gpu"],
+  "templating": { "list": [] },
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "AI Lab — Transcription Pipeline",
+  "uid": "ai-lab-transcription",
+  "version": 1
+}
