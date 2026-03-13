@@ -49,6 +49,20 @@ def _resolve_api_keys(configs: dict) -> dict[str, str]:
     return keys
 
 
+def _resolve_webhook_keys(configs: dict) -> dict[str, str]:
+    """Получить webhook-ключи из переменных окружения."""
+    keys = {}
+    for domain, cfg in configs.items():
+        env_name = cfg.webhook_key_env
+        if not env_name:
+            continue
+        key = os.environ.get(env_name, "")
+        if not key:
+            logger.warning("Webhook-ключ %s не задан для %s", env_name, domain)
+        keys[domain] = key
+    return keys
+
+
 async def _sync_directory(domain: str, client: GravitelClient) -> None:
     """Синхронизировать справочники (operators, departments) для домена."""
     try:
@@ -159,6 +173,7 @@ async def lifespan(app: FastAPI):
 
     _domain_configs = load_domains_config()
     api_keys = _resolve_api_keys(_domain_configs)
+    webhook_keys = _resolve_webhook_keys(_domain_configs)
 
     for domain, cfg in _domain_configs.items():
         if cfg.enabled and api_keys.get(domain):
@@ -174,7 +189,7 @@ async def lifespan(app: FastAPI):
     webhook.set_dependencies(
         db=_db,
         domain_configs=_domain_configs,
-        api_keys=api_keys,
+        api_keys=webhook_keys,
         on_new_call=lambda call_id: None,
     )
     api.set_dependencies(db=_db, domain_configs=_domain_configs)

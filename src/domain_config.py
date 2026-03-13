@@ -29,10 +29,11 @@ class DomainConfig:
     """Конфигурация одного домена клиента."""
 
     api_key_env: str
-    profile: str | None
-    enabled: bool
-    polling_interval_min: int
-    filters: CallFilters
+    webhook_key_env: str = ""
+    profile: str | None = None
+    enabled: bool = True
+    polling_interval_min: int = 10
+    filters: CallFilters = field(default_factory=CallFilters)
 
 
 def load_domains_config(config_path: Path | None = None) -> dict[str, DomainConfig]:
@@ -64,6 +65,7 @@ def load_domains_config(config_path: Path | None = None) -> dict[str, DomainConf
 
         domains[domain_name] = DomainConfig(
             api_key_env=domain_data["api_key_env"],
+            webhook_key_env=domain_data.get("webhook_key_env", ""),
             profile=domain_data.get("profile"),
             enabled=domain_data.get("enabled", True),
             polling_interval_min=domain_data.get("polling_interval_min", 10),

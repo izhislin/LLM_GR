@@ -1,6 +1,7 @@
 domains:
   gravitel.aicall.ru:
     api_key_env: "GRAVITEL_API_KEY"
+    webhook_key_env: "GRAVITEL_WEBHOOK_KEY"
     profile: "gravitel"
     enabled: true
     polling_interval_min: 10
