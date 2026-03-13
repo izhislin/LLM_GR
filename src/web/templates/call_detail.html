@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Звонок {{ call_id }}{% endblock %}
+{% block content %}
+<div class="back-link"><a href="/">&larr; К списку звонков</a></div>
+
+<div id="call-detail" data-call-id="{{ call_id }}">
+    <div class="loading">Загрузка...</div>
+</div>
+{% endblock %}
