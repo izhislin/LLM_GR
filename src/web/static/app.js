@@ -22,6 +22,20 @@ function formatTime(iso) {
     return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function formatTimeFull(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleString('ru-RU', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+}
+
+function getScore(qs) {
+    if (!qs) return null;
+    return qs.total ?? qs.rounded_score ?? qs.average_score ?? null;
+}
+
 function scoreClass(score) {
     if (score >= 7) return 'score-high';
     if (score >= 5) return 'score-mid';
@@ -37,6 +51,11 @@ function dirBadge(dir) {
     if (dir === 'in') return '<span class="dir-in">&#x2193; Вх</span>';
     if (dir === 'out') return '<span class="dir-out">&#x2191; Исх</span>';
     return dir || '—';
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ── Stats bar ───────────────────────────────────────────────────────────────
@@ -112,7 +131,7 @@ async function loadCalls() {
             if (c.processing_status === 'done' && c.result_json) {
                 try {
                     const res = JSON.parse(c.result_json || '{}');
-                    const total = res.quality_score?.total;
+                    const total = getScore(res.quality_score);
                     if (total != null) {
                         scoreHtml = `<span class="score ${scoreClass(total)}">${total}/10</span>`;
                     }
@@ -155,6 +174,139 @@ function goToPage(p) { currentPage = p; loadCalls(); }
 
 // ── Call detail ─────────────────────────────────────────────────────────────
 
+function renderQualityScore(qs) {
+    if (!qs) return '';
+    const score = getScore(qs);
+    if (score == null) return '';
+
+    const criteriaLabels = {
+        greeting: 'Приветствие',
+        listening: 'Слушание',
+        solution: 'Решение',
+        politeness: 'Вежливость',
+        closing: 'Завершение',
+    };
+
+    let barsHtml = '';
+    for (const [key, label] of Object.entries(criteriaLabels)) {
+        const val = qs[key];
+        if (val == null) continue;
+        const pct = (val / 10) * 100;
+        barsHtml += `
+            <div class="criteria-row">
+                <span class="criteria-label">${label}</span>
+                <div class="criteria-bar-bg">
+                    <div class="criteria-bar ${scoreClass(val)}" style="width:${pct}%"></div>
+                </div>
+                <span class="criteria-value">${val}</span>
+            </div>`;
+    }
+
+    const ivrNote = qs.is_ivr ? '<div class="ivr-badge">IVR / Автоответчик</div>' : '';
+
+    return `
+        <div class="call-card">
+            <h2>Оценка качества</h2>
+            ${ivrNote}
+            <div class="score-hero">
+                <span class="score-big ${scoreClass(score)}">${score}<span class="score-max">/10</span></span>
+            </div>
+            <div class="criteria-grid">${barsHtml}</div>
+        </div>`;
+}
+
+function renderSummary(s) {
+    if (!s) return '';
+
+    const typeLabel = s.call_type || '';
+    const topicHtml = s.topic ? `<p class="summary-topic">${escHtml(s.topic)}</p>` : '';
+    const outcomeHtml = s.outcome ? `<div class="summary-section"><strong>Результат:</strong> ${escHtml(s.outcome)}</div>` : '';
+
+    let keyPointsHtml = '';
+    if (s.key_points?.length) {
+        keyPointsHtml = `
+            <div class="summary-section">
+                <strong>Ключевые моменты:</strong>
+                <ul>${s.key_points.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul>
+            </div>`;
+    }
+
+    let actionsHtml = '';
+    if (s.action_items?.length) {
+        actionsHtml = `
+            <div class="summary-section">
+                <strong>Дальнейшие действия:</strong>
+                <ul>${s.action_items.map(a => `<li>${escHtml(a)}</li>`).join('')}</ul>
+            </div>`;
+    }
+
+    return `
+        <div class="call-card">
+            <h2>Резюме ${typeLabel ? `<span class="call-type-badge">${escHtml(typeLabel)}</span>` : ''}</h2>
+            ${topicHtml}
+            ${outcomeHtml}
+            ${keyPointsHtml}
+            ${actionsHtml}
+        </div>`;
+}
+
+function renderExtractedData(ed) {
+    if (!ed) return '';
+
+    const fields = [
+        ['operator_name', 'Оператор'],
+        ['client_name', 'Клиент'],
+        ['department', 'Отдел'],
+        ['contract_number', 'Договор'],
+        ['phone_number', 'Телефон'],
+    ];
+
+    let fieldsHtml = '';
+    for (const [key, label] of fields) {
+        const val = ed[key];
+        if (val != null && val !== '') {
+            fieldsHtml += `<div class="ed-field"><span class="ed-label">${label}:</span> <span class="ed-value">${escHtml(String(val))}</span></div>`;
+        }
+    }
+
+    const renderList = (arr, title) => {
+        if (!arr?.length) return '';
+        return `<div class="ed-list"><strong>${title}:</strong><ul>${arr.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul></div>`;
+    };
+
+    const callbackHtml = ed.callback_needed ? '<div class="ed-callback">Требуется обратный звонок</div>' : '';
+
+    return `
+        <div class="call-card">
+            <h2>Извлечённые данные</h2>
+            ${fieldsHtml ? `<div class="ed-fields">${fieldsHtml}</div>` : ''}
+            ${callbackHtml}
+            ${renderList(ed.agreements, 'Договорённости')}
+            ${renderList(ed.issues, 'Проблемы')}
+            ${renderList(ed.next_steps, 'Следующие шаги')}
+        </div>`;
+}
+
+function renderTranscript(text) {
+    if (!text) return '';
+
+    const lines = text.split('\n').map(line => {
+        const escaped = escHtml(line);
+        if (escaped.includes('Оператор:')) {
+            return `<div class="t-line t-operator">${escaped}</div>`;
+        } else if (escaped.includes('Клиент:')) {
+            return `<div class="t-line t-client">${escaped}</div>`;
+        }
+        return `<div class="t-line">${escaped}</div>`;
+    }).join('');
+
+    return `
+        <div class="call-card">
+            <h2>Транскрипт</h2>
+            <div class="transcript">${lines}</div>
+        </div>`;
+}
+
 async function loadCallDetail() {
     const el = qs('#call-detail');
     if (!el) return;
@@ -176,7 +328,7 @@ async function loadCallDetail() {
                 <div class="meta-grid">
                     <div class="meta-item"><label>ID</label><span>${data.id}</span></div>
                     <div class="meta-item"><label>Домен</label><span>${data.domain}</span></div>
-                    <div class="meta-item"><label>Дата</label><span>${formatTime(data.started_at)}</span></div>
+                    <div class="meta-item"><label>Дата</label><span>${formatTimeFull(data.started_at)}</span></div>
                     <div class="meta-item"><label>Направление</label><span>${dirBadge(data.direction)}</span></div>
                     <div class="meta-item"><label>Длительность</label><span>${formatDuration(data.duration)}</span></div>
                     <div class="meta-item"><label>Клиент</label><span>${data.client_number || '—'}</span></div>
@@ -186,37 +338,15 @@ async function loadCallDetail() {
                 </div>
             </div>
 
-            ${result.quality_score ? `
-            <div class="call-card">
-                <h2>Оценка качества</h2>
-                <div style="font-size:2rem;margin-bottom:12px">
-                    <span class="score ${scoreClass(result.quality_score.total)}">${result.quality_score.total}/10</span>
-                </div>
-                <pre style="white-space:pre-wrap;font-size:0.85rem">${JSON.stringify(result.quality_score, null, 2)}</pre>
-            </div>` : ''}
-
-            ${result.summary ? `
-            <div class="call-card">
-                <h2>Резюме</h2>
-                <pre style="white-space:pre-wrap;font-size:0.9rem">${JSON.stringify(result.summary, null, 2)}</pre>
-            </div>` : ''}
-
-            ${result.extracted_data ? `
-            <div class="call-card">
-                <h2>Извлечённые данные</h2>
-                <pre style="white-space:pre-wrap;font-size:0.9rem">${JSON.stringify(result.extracted_data, null, 2)}</pre>
-            </div>` : ''}
-
-            ${result.transcript ? `
-            <div class="call-card">
-                <h2>Транскрипт</h2>
-                <div class="transcript">${result.transcript}</div>
-            </div>` : ''}
+            ${renderQualityScore(result.quality_score)}
+            ${renderSummary(result.summary)}
+            ${renderExtractedData(result.extracted_data)}
+            ${renderTranscript(result.transcript)}
 
             ${proc.error_message ? `
             <div class="call-card">
                 <h2>Ошибка</h2>
-                <pre style="color:#721c24">${proc.error_message}</pre>
+                <pre style="color:#721c24">${escHtml(proc.error_message)}</pre>
             </div>` : ''}
         `;
     } catch (e) {
@@ -239,7 +369,6 @@ function setupSync() {
             if (domain) {
                 await fetch(`${API}/sync/${domain}`, { method: 'POST' });
             } else {
-                // Sync all domains
                 const resp = await fetch(`${API}/domains`);
                 const domains = await resp.json();
                 for (const d of domains) {
