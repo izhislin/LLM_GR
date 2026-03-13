@@ -9,6 +9,7 @@ from src.db import (
     list_calls,
     get_calls_count,
     get_processing,
+    get_operator_name,
     list_operators,
     list_departments,
 )
@@ -62,6 +63,12 @@ def api_call_detail(call_id: str):
     call = get_call(_db, call_id)
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
+
+    # Подставить имя оператора из справочника, если не задано в звонке
+    if not call.get("operator_name") and call.get("operator_extension"):
+        name = get_operator_name(_db, call["domain"], call["operator_extension"])
+        if name:
+            call["operator_name"] = name
 
     proc = get_processing(_db, call_id)
     return {**call, "processing": dict(proc) if proc else None}

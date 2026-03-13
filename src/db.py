@@ -182,9 +182,11 @@ def list_calls(
         Список словарей с данными звонков.
     """
     query = """
-        SELECT c.*, p.status AS processing_status, p.retry_count, p.error_message
+        SELECT c.*, p.status AS processing_status, p.retry_count, p.error_message,
+               COALESCE(c.operator_name, o.name) AS operator_name
         FROM calls c
         LEFT JOIN processing p ON c.id = p.call_id
+        LEFT JOIN operators o ON c.domain = o.domain AND c.operator_extension = o.extension
         WHERE 1=1
     """
     params: list = []
