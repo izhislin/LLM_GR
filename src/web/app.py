@@ -3,15 +3,19 @@
 import asyncio
 import logging
 import os
+import secrets
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from src.config import PROJECT_ROOT, DATA_DIR
 from src.db import init_db, update_domain_poll_time, upsert_operator, upsert_department
@@ -213,10 +217,53 @@ async def lifespan(app: FastAPI):
     logger.info("AI Lab Web остановлен.")
 
 
+# ── Basic Auth Middleware ─────────────────────────────────────────────────────
+
+_OPEN_PREFIXES = ("/webhook/", "/metrics")
+
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    """HTTP Basic Auth для всех маршрутов, кроме webhook и metrics."""
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+
+        # Webhook и metrics — без basic auth
+        for prefix in _OPEN_PREFIXES:
+            if path.startswith(prefix):
+                return await call_next(request)
+
+        username = os.environ.get("WEB_USERNAME", "")
+        password = os.environ.get("WEB_PASSWORD", "")
+
+        # Если пароль не настроен — пропускаем auth
+        if not username or not password:
+            return await call_next(request)
+
+        import base64
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(auth[6:]).decode("utf-8")
+                req_user, req_pass = decoded.split(":", 1)
+                if (secrets.compare_digest(req_user, username)
+                        and secrets.compare_digest(req_pass, password)):
+                    return await call_next(request)
+            except Exception:
+                pass
+
+        return Response(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="AI Lab"'},
+            content="Unauthorized",
+        )
+
+
 # ── App ──────────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="AI Lab — Анализ звонков", lifespan=lifespan)
 
+app.add_middleware(BasicAuthMiddleware)
 app.include_router(webhook.router)
 app.include_router(api.router)
 
