@@ -9,6 +9,14 @@
 
 ## Записи
 
+### 2026-03-13 — Модуль конфигурации доменов
+
+- Создан `src/domain_config.py`: датаклассы `CallFilters` и `DomainConfig`, функция `load_domains_config()`
+- `CallFilters`: фильтрация звонков по длительности, типу, наличию записи, результату (дефолты для всех полей)
+- `DomainConfig`: api_key_env, profile, enabled, polling_interval_min, filters
+- `load_domains_config()`: загрузка из YAML (`config/domains.yaml`), поддержка частичных фильтров с дефолтами
+- Создан `tests/test_domain_config.py`: 11 тестов (TDD), всего 57 тестов — все проходят
+
 ### 2026-03-13 — Prometheus-экспортёры на сервере
 
 - Установлен `node_exporter` v1.7.0 (apt) — CPU, RAM, disk, network
