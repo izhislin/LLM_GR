@@ -91,7 +91,7 @@ def process_audio_file(
     llm_context = profile.get("llm_context") if profile else None
     logger.info("LLM-анализ...")
     with track_stage("llm_analyze"):
-        analysis = analyze_dialogue(dialogue_text, prompts_dir, llm_context=llm_context)
+        analysis = analyze_dialogue(dialogue_text, prompts_dir, llm_context=llm_context, profile=profile)
 
     # 6. Метрики обработки
     processing_time = time.monotonic() - pipeline_start

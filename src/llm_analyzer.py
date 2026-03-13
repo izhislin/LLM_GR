@@ -100,10 +100,24 @@ def call_llm(
     )
 
 
+def _correct_llm_output(obj, profile):
+    """Рекурсивно применить text_corrector к строкам в LLM-ответе."""
+    from src.text_corrector import correct_text
+
+    if isinstance(obj, str):
+        return correct_text(obj, profile)
+    if isinstance(obj, dict):
+        return {k: _correct_llm_output(v, profile) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_correct_llm_output(item, profile) for item in obj]
+    return obj
+
+
 def analyze_dialogue(
     dialogue_text: str,
     prompts_dir: Path,
     llm_context: str | None = None,
+    profile: dict | None = None,
 ) -> dict:
     """Выполнить полный анализ диалога: суммаризация, оценка, извлечение.
 
@@ -111,6 +125,7 @@ def analyze_dialogue(
         dialogue_text: Текст диалога с таймкодами и метками.
         prompts_dir: Директория с промпт-файлами.
         llm_context: Контекст компании из профиля (добавляется перед диалогом).
+        profile: Загруженный профиль коррекции (для пост-обработки LLM-ответов).
 
     Returns:
         Словарь с ключами: summary, quality_score, extracted_data.
@@ -142,5 +157,10 @@ def analyze_dialogue(
         system_prompt=extract_prompt,
         user_message=user_message,
     )
+
+    # Пост-обработка: коррекция текста в LLM-ответах (Gravital → Гравител и т.д.)
+    if profile:
+        for key in results:
+            results[key] = _correct_llm_output(results[key], profile)
 
     return results
