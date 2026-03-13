@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.config import PROJECT_ROOT, DATA_DIR
 from src.db import init_db, update_domain_poll_time, upsert_operator, upsert_department
+from src.metrics import start_metrics_server
 from src.domain_config import load_domains_config
 from src.gravitel_api import GravitelClient
 from src.worker import CallWorker
@@ -170,6 +171,8 @@ async def lifespan(app: FastAPI):
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     _db = init_db(str(DB_PATH))
+
+    start_metrics_server()
 
     _domain_configs = load_domains_config()
     api_keys = _resolve_api_keys(_domain_configs)
