@@ -70,3 +70,56 @@ def test_load_prompt(tmp_path):
     result = load_prompt(prompt_file)
 
     assert "Ты аналитик колл-центра." in result
+
+
+@patch("src.llm_analyzer.requests.post")
+def test_analyze_dialogue_passes_llm_context(mock_post, tmp_path):
+    """analyze_dialogue должен добавлять llm_context перед диалогом."""
+    # Создаём промпт-файлы
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    for name in ["summarize.md", "quality_score.md", "extract_data.md"]:
+        (prompts_dir / name).write_text("Анализируй.")
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "message": {"content": '{"topic": "тест"}'}
+    }
+    mock_response.raise_for_status = MagicMock()
+    mock_post.return_value = mock_response
+
+    analyze_dialogue(
+        "[00:00:00] Оператор: Привет.",
+        prompts_dir,
+        llm_context="Звонок в компании Гравител.",
+    )
+
+    # Проверяем, что контекст был в user_message первого вызова
+    first_call_payload = mock_post.call_args_list[0][1]["json"]
+    user_msg = first_call_payload["messages"][1]["content"]
+    assert "Контекст: Звонок в компании Гравител." in user_msg
+    assert "[00:00:00] Оператор: Привет." in user_msg
+
+
+@patch("src.llm_analyzer.requests.post")
+def test_analyze_dialogue_without_context(mock_post, tmp_path):
+    """Без llm_context диалог передаётся как есть."""
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    for name in ["summarize.md", "quality_score.md", "extract_data.md"]:
+        (prompts_dir / name).write_text("Анализируй.")
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "message": {"content": '{"topic": "тест"}'}
+    }
+    mock_response.raise_for_status = MagicMock()
+    mock_post.return_value = mock_response
+
+    dialogue = "[00:00:00] Оператор: Привет."
+    analyze_dialogue(dialogue, prompts_dir)
+
+    first_call_payload = mock_post.call_args_list[0][1]["json"]
+    user_msg = first_call_payload["messages"][1]["content"]
+    assert user_msg == dialogue
+    assert "Контекст:" not in user_msg

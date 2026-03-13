@@ -63,6 +63,12 @@ class TestCommonCorrections:
         assert "ВАТС" in correct_text("Ватс настроена")
         assert "АТС" in correct_text("Атээс работает")
 
+    def test_truncated_words(self):
+        """Обрезанные слова GigaAM исправляются."""
+        assert "штрих" in correct_text("последний штри который остался")
+        assert "Штрих" in correct_text("Штри код нужен")
+        assert "добавочный" in correct_text("добавочн 733")
+
     def test_full_transcript(self):
         """Комплексный тест на реалистичном транскрипте."""
         result = correct_text(SAMPLE_TRANSCRIPT)

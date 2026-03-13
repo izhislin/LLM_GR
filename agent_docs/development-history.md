@@ -9,6 +9,30 @@
 
 ## Записи
 
+### 2026-03-13 — Prometheus-метрики в пайплайне
+
+- Создан `src/metrics.py`: 8 Prometheus-метрик (pipeline timing, RTF, файлы, Ollama tokens/sec, ретраи)
+- `start_metrics_server()` — фоновый HTTP на `:8000/metrics`, `track_stage()` — context manager для замера этапов
+- `llm_analyzer.py`: извлечение Ollama metadata (`eval_count`, `eval_duration`, `prompt_eval_count`), обновление счётчиков
+- `pipeline.py`: 5 этапов обёрнуты в `track_stage`, обновление `pipeline_rtf` и `pipeline_files_total`
+- Import guard (`try/except ImportError`) — `prometheus_client` опциональна, пайплайн работает без неё
+- `requirements.txt`: добавлен `prometheus_client>=0.20`
+- 9 новых тестов (`tests/test_metrics.py`), всего 46 тестов — все проходят
+
+### 2026-03-13 — Улучшение качества анализа (Подход A)
+
+- Уточнена целевая аудитория в AGENTS.md: сервис для клиентов Гравител (компании с ВАТС), не для собственного колл-центра
+- `text_corrector.py`: добавлены паттерны для обрезанных слов GigaAM (`штри`→`штрих`, `добавочн`→`добавочный`)
+- `profiles/gravitel.yaml`: добавлены термины (`софтфон`), расширен `llm_context` (домены, продукты)
+- `llm_analyzer.py`: `analyze_dialogue()` принимает `llm_context` и добавляет его перед диалогом во все LLM-вызовы
+- `pipeline.py`: передаёт `llm_context` из профиля в `analyze_dialogue()`
+- **Промпты:**
+  - `quality_score.md`: IVR-детекция (`is_ivr: true`), уточнены критерии greeting (перевод звонка), откалибрована шкала (7-8 = норма)
+  - `summarize.md`: добавлены `call_type` и `action_items`
+  - `extract_data.md`: добавлены `operator_name` и `department`
+- 37 тестов (было 34), все проходят
+- Дизайн: `docs/plans/2026-03-13-quality-improvements-design.md`
+
 ### 2026-03-11 — Инициализация проекта и утверждение дизайна
 
 - Определены требования: транскрибация двухканальных телефонных записей (русский) + LLM-обработка

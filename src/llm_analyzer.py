@@ -7,6 +7,15 @@ from pathlib import Path
 import requests
 
 from src.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
+from src.metrics import PROMETHEUS_AVAILABLE
+
+if PROMETHEUS_AVAILABLE:
+    from src.metrics import (
+        OLLAMA_PROMPT_TOKENS,
+        OLLAMA_GENERATED_TOKENS,
+        OLLAMA_TOKENS_PER_SECOND,
+        OLLAMA_RETRIES,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +25,24 @@ MAX_RETRIES = 2
 def load_prompt(prompt_path: Path) -> str:
     """Загрузить текст промпта из файла."""
     return Path(prompt_path).read_text(encoding="utf-8").strip()
+
+
+def _update_ollama_metrics(response_data: dict) -> None:
+    """Извлечь метаданные из ответа Ollama и обновить Prometheus-счётчики."""
+    if not PROMETHEUS_AVAILABLE:
+        return
+
+    eval_count = response_data.get("eval_count", 0)
+    eval_duration_ns = response_data.get("eval_duration", 0)
+    prompt_eval_count = response_data.get("prompt_eval_count", 0)
+
+    if prompt_eval_count:
+        OLLAMA_PROMPT_TOKENS.inc(prompt_eval_count)
+    if eval_count:
+        OLLAMA_GENERATED_TOKENS.inc(eval_count)
+    if eval_count and eval_duration_ns > 0:
+        tokens_per_sec = eval_count / (eval_duration_ns / 1e9)
+        OLLAMA_TOKENS_PER_SECOND.set(tokens_per_sec)
 
 
 def call_llm(
@@ -54,14 +81,19 @@ def call_llm(
         resp = requests.post(OLLAMA_URL, json=payload, timeout=OLLAMA_TIMEOUT)
         resp.raise_for_status()
 
-        content = resp.json()["message"]["content"]
+        response_data = resp.json()
+        content = response_data["message"]["content"]
 
         try:
-            return json.loads(content)
+            parsed = json.loads(content)
+            _update_ollama_metrics(response_data)
+            return parsed
         except json.JSONDecodeError:
             logger.warning(
                 "Попытка %d: невалидный JSON от LLM: %s", attempt, content[:200]
             )
+            if PROMETHEUS_AVAILABLE:
+                OLLAMA_RETRIES.inc()
 
     raise RuntimeError(
         f"Не удалось получить валидный JSON от LLM после {MAX_RETRIES} попыток"
@@ -69,38 +101,46 @@ def call_llm(
 
 
 def analyze_dialogue(
-    dialogue_text: str, prompts_dir: Path
+    dialogue_text: str,
+    prompts_dir: Path,
+    llm_context: str | None = None,
 ) -> dict:
     """Выполнить полный анализ диалога: суммаризация, оценка, извлечение.
 
     Args:
         dialogue_text: Текст диалога с таймкодами и метками.
         prompts_dir: Директория с промпт-файлами.
+        llm_context: Контекст компании из профиля (добавляется перед диалогом).
 
     Returns:
         Словарь с ключами: summary, quality_score, extracted_data.
     """
+    if llm_context:
+        user_message = f"Контекст: {llm_context.strip()}\n\n---\n\n{dialogue_text}"
+    else:
+        user_message = dialogue_text
+
     results = {}
 
     logger.info("Суммаризация...")
     summary_prompt = load_prompt(prompts_dir / "summarize.md")
     results["summary"] = call_llm(
         system_prompt=summary_prompt,
-        user_message=dialogue_text,
+        user_message=user_message,
     )
 
     logger.info("Оценка качества...")
     quality_prompt = load_prompt(prompts_dir / "quality_score.md")
     results["quality_score"] = call_llm(
         system_prompt=quality_prompt,
-        user_message=dialogue_text,
+        user_message=user_message,
     )
 
     logger.info("Извлечение данных...")
     extract_prompt = load_prompt(prompts_dir / "extract_data.md")
     results["extracted_data"] = call_llm(
         system_prompt=extract_prompt,
-        user_message=dialogue_text,
+        user_message=user_message,
     )
 
     return results

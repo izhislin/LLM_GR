@@ -12,7 +12,7 @@ TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
 RESULTS_DIR = DATA_DIR / "results"
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 PROFILES_DIR = PROJECT_ROOT / "profiles"
-DEFAULT_PROFILE = None  # имя профиля (без .yaml) или None
+DEFAULT_PROFILE = "gravitel"  # имя профиля (без .yaml) или None
 
 # GigaAM
 GIGAAM_MODEL = "v3_e2e_rnnt"
@@ -25,3 +25,6 @@ OLLAMA_TIMEOUT = 120  # секунд на один вызов LLM
 
 # Аудио
 SAMPLE_RATE = 16000  # GigaAM ожидает 16kHz
+
+# Prometheus
+METRICS_PORT = 8000
