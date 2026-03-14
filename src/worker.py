@@ -50,11 +50,20 @@ class CallWorker:
             logger.error("Звонок не найден: %s", call_id)
             return
 
-        update_processing_status(self.db, call_id, status="downloading")
         start_time = time.monotonic()
 
         try:
-            audio_path = self._download_record(call)
+            # Пропустить скачивание если файл уже есть на диске
+            proc = get_processing(self.db, call_id)
+            existing_path = proc.get("audio_path") if proc else None
+
+            if existing_path and Path(existing_path).exists():
+                audio_path = Path(existing_path)
+                logger.info("Аудио уже скачано: %s", audio_path)
+            else:
+                update_processing_status(self.db, call_id, status="downloading")
+                audio_path = self._download_record(call)
+
             update_processing_status(
                 self.db, call_id, status="processing", audio_path=str(audio_path)
             )
