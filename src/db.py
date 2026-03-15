@@ -366,6 +366,29 @@ def get_pending_calls(conn: sqlite3.Connection, limit: int = 10) -> list[dict]:
     return [dict(row) for row in cursor.fetchall()]
 
 
+def reset_stale_processing(conn: sqlite3.Connection, stale_minutes: int = 15) -> int:
+    """Сбросить записи, зависшие в processing/downloading дольше N минут.
+
+    Args:
+        conn: соединение с БД.
+        stale_minutes: порог в минутах.
+
+    Returns:
+        Количество сброшенных записей.
+    """
+    cursor = conn.execute(
+        """
+        UPDATE processing
+        SET status = 'pending', error_message = 'stale reset'
+        WHERE status IN ('processing', 'downloading')
+          AND started_at < datetime('now', ? || ' minutes')
+        """,
+        (f"-{stale_minutes}",),
+    )
+    conn.commit()
+    return cursor.rowcount
+
+
 def get_retryable_calls(
     conn: sqlite3.Connection, max_retries: int = 3
 ) -> list[dict]:

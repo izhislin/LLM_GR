@@ -38,7 +38,7 @@ def test_call_llm_returns_parsed_json(mock_post):
 
 @patch("src.llm_analyzer.requests.post")
 def test_call_llm_retries_on_invalid_json(mock_post):
-    """При невалидном JSON должен быть повторный вызов."""
+    """При невалидном JSON должен быть повторный вызов (MAX_RETRIES=3)."""
     bad_response = MagicMock()
     bad_response.json.return_value = {
         "message": {"content": "это не json"}
@@ -51,7 +51,7 @@ def test_call_llm_retries_on_invalid_json(mock_post):
     }
     good_response.raise_for_status = MagicMock()
 
-    mock_post.side_effect = [bad_response, good_response]
+    mock_post.side_effect = [bad_response, bad_response, good_response]
 
     result = call_llm(
         system_prompt="Ты аналитик.",
@@ -59,7 +59,41 @@ def test_call_llm_retries_on_invalid_json(mock_post):
     )
 
     assert result["topic"] == "тариф"
-    assert mock_post.call_count == 2
+    assert mock_post.call_count == 3
+
+
+@patch("src.llm_analyzer.requests.post")
+def test_call_llm_sends_num_ctx_and_json_format(mock_post):
+    """call_llm должен передавать num_ctx в options и format='json'."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "message": {"content": '{"ok": true}'}
+    }
+    mock_response.raise_for_status = MagicMock()
+    mock_post.return_value = mock_response
+
+    call_llm(system_prompt="Тест.", user_message="Текст.")
+
+    payload = mock_post.call_args[1]["json"]
+    assert payload["options"]["num_ctx"] == 32768
+    assert payload["format"] == "json"
+
+
+@patch("src.llm_analyzer.requests.post")
+def test_call_llm_schema_overrides_json_format(mock_post):
+    """response_schema должен перезаписать format='json'."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "message": {"content": '{"ok": true}'}
+    }
+    mock_response.raise_for_status = MagicMock()
+    mock_post.return_value = mock_response
+
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    call_llm(system_prompt="Тест.", user_message="Текст.", response_schema=schema)
+
+    payload = mock_post.call_args[1]["json"]
+    assert payload["format"] == schema
 
 
 def test_load_prompt(tmp_path):

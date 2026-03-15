@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.config import GIGAAM_MODEL, GIGAAM_DEVICE
+from src.config import GIGAAM_MODEL, GIGAAM_DEVICE, VAD_NEW_CHUNK_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,10 @@ def transcribe_channel(audio_path: Path) -> list[Utterance]:
     audio_path = Path(audio_path)
     model = _get_model()
 
-    raw_utterances = model.transcribe_longform(str(audio_path))
+    raw_utterances = model.transcribe_longform(
+        str(audio_path),
+        new_chunk_threshold=VAD_NEW_CHUNK_THRESHOLD,
+    )
 
     utterances = []
     for item in raw_utterances:

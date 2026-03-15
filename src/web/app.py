@@ -18,7 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from src.config import PROJECT_ROOT, DATA_DIR
-from src.db import init_db, update_domain_poll_time, upsert_operator, upsert_department
+from src.db import init_db, update_domain_poll_time, upsert_operator, upsert_department, reset_stale_processing
 from src.metrics import start_metrics_server
 from src.domain_config import load_domains_config
 from src.gravitel_api import GravitelClient
@@ -147,6 +147,10 @@ async def _scheduler_loop():
                 client = _api_clients.get(domain)
                 if client:
                     await _poll_domain(domain, client)
+
+            stale = reset_stale_processing(_db)
+            if stale:
+                logger.info("Сброшено %d зависших записей", stale)
 
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(_executor, _worker.process_pending)

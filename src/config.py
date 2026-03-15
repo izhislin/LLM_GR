@@ -21,10 +21,12 @@ GIGAAM_DEVICE = None  # None = auto (CUDA if available)
 # Ollama
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "qwen3:8b"
-OLLAMA_TIMEOUT = 120  # секунд на один вызов LLM
+OLLAMA_TIMEOUT = 300  # секунд на один вызов LLM (5 мин для длинных на CPU)
+OLLAMA_NUM_CTX = 32768  # контекстное окно (Qwen3-8B поддерживает 40960)
 
 # Аудио
 SAMPLE_RATE = 16000  # GigaAM ожидает 16kHz
+VAD_NEW_CHUNK_THRESHOLD = 0.05  # мин. длительность сегмента (снижено с 0.2 для коротких фраз)
 
 # Prometheus
 METRICS_PORT = 8000

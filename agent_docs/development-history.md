@@ -9,6 +9,15 @@
 
 ## Записи
 
+### 2026-03-15 — Исправление LLM-ошибок, stale detector, VAD threshold
+
+- **LLM num_ctx:** Ollama обрезал промпт на 4096 токенов → добавлен `OLLAMA_NUM_CTX=32768` (Qwen3-8B max 40960). `format: "json"` включён по умолчанию (constraint mode).
+- **Таймаут:** `OLLAMA_TIMEOUT` увеличен с 120 до 300 сек (для длинных на CPU). `MAX_RETRIES` увеличен с 2 до 3.
+- **Stale detector:** `reset_stale_processing()` в db.py — сбрасывает записи в processing/downloading старше 15 мин. Вызывается в `_scheduler_loop()` перед `process_pending()`.
+- **VAD threshold:** `VAD_NEW_CHUNK_THRESHOLD=0.05` (было 0.2) — снижен порог для коротких фраз («да», «угу»).
+- **Тесты:** 144 passed (было 138, +3 db, +2 llm_analyzer, +1 transcriber assertion).
+- **GPU:** подготовлены инструкции для перевода Ollama на GPU (серверная задача).
+
 ### 2026-03-13 — Деплой на AI Lab и доработка Web UI
 
 - **Деплой:** git init + fetch на сервере, установлены fastapi/uvicorn/apscheduler/python-dotenv/python-multipart

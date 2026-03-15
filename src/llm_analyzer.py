@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 
-from src.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
+from src.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_NUM_CTX
 from src.metrics import PROMETHEUS_AVAILABLE
 
 if PROMETHEUS_AVAILABLE:
@@ -19,7 +19,7 @@ if PROMETHEUS_AVAILABLE:
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 2
+MAX_RETRIES = 3
 
 
 def load_prompt(prompt_path: Path) -> str:
@@ -70,7 +70,8 @@ def call_llm(
             {"role": "user", "content": user_message},
         ],
         "stream": False,
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "num_ctx": OLLAMA_NUM_CTX},
+        "format": "json",
     }
     if response_schema:
         payload["format"] = response_schema

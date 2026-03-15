@@ -33,6 +33,11 @@ def test_transcribe_channel_returns_utterances(mock_get_model, tmp_path):
     assert result[0].start == 0.0
     assert result[0].end == 2.5
 
+    # Проверяем, что new_chunk_threshold передаётся
+    mock_model.transcribe_longform.assert_called_once_with(
+        str(fake_audio), new_chunk_threshold=0.05
+    )
+
 
 @patch("src.transcriber._get_model")
 def test_transcribe_channel_empty_audio(mock_get_model, tmp_path):
