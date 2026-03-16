@@ -77,6 +77,7 @@ def test_call_llm_sends_num_ctx_and_json_format(mock_post):
     payload = mock_post.call_args[1]["json"]
     assert payload["options"]["num_ctx"] == 32768
     assert payload["format"] == "json"
+    assert payload["think"] is False
 
 
 @patch("src.llm_analyzer.requests.post")

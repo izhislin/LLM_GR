@@ -70,6 +70,7 @@ def call_llm(
             {"role": "user", "content": user_message},
         ],
         "stream": False,
+        "think": False,
         "options": {"temperature": 0, "num_ctx": OLLAMA_NUM_CTX},
         "format": "json",
     }
