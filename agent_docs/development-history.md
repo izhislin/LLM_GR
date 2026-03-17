@@ -9,6 +9,13 @@
 
 ## Записи
 
+### 2026-03-17 — Верификация GPU-инференса Ollama, keep_alive
+
+- **GPU-статус:** Подтверждено — Ollama использует GPU (37/37 слоёв на CUDA, RTX 5060 Ti). Ранее казалось, что LLM на CPU, но модель просто выгружалась по idle-таймауту (5 мин default).
+- **Бенчмарк:** 74-77 tokens/sec на GPU (Qwen3:8b). Суммаризация диалога ~12 сек. VRAM: GigaAM 1.4 GB + Ollama 6.1 GB = 7.5 GB из 16 GB (запас 8.3 GB).
+- **keep_alive:** Добавлен `OLLAMA_KEEP_ALIVE="30m"` в `config.py`, передаётся per-request через API payload (`llm_analyzer.py`). Без sudo — не требует изменения systemd-сервиса.
+- **Тесты:** 7/7 llm_analyzer passed.
+
 ### 2026-03-15 — Исправление LLM-ошибок, stale detector, VAD threshold
 
 - **LLM num_ctx:** Ollama обрезал промпт на 4096 токенов → добавлен `OLLAMA_NUM_CTX=32768` (Qwen3-8B max 40960). `format: "json"` включён по умолчанию (constraint mode).
@@ -98,16 +105,6 @@
 - Ollama v0.17.7 не поддерживает встроенные Prometheus-метрики (`OLLAMA_METRICS` не существует), порт зарезервирован
 - Маппинг MikroTik: 42363→9100, 42364→9835, 42365→8000, 42366→11434
 - Документация: `agent_docs/guides/server-access.md` (секция «Мониторинг»)
-
-### 2026-03-13 — Prometheus-метрики в пайплайне
-
-- Создан `src/metrics.py`: 8 Prometheus-метрик (pipeline timing, RTF, файлы, Ollama tokens/sec, ретраи)
-- `start_metrics_server()` — фоновый HTTP на `:8000/metrics`, `track_stage()` — context manager для замера этапов
-- `llm_analyzer.py`: извлечение Ollama metadata (`eval_count`, `eval_duration`, `prompt_eval_count`), обновление счётчиков
-- `pipeline.py`: 5 этапов обёрнуты в `track_stage`, обновление `pipeline_rtf` и `pipeline_files_total`
-- Import guard (`try/except ImportError`) — `prometheus_client` опциональна, пайплайн работает без неё
-- `requirements.txt`: добавлен `prometheus_client>=0.20`
-- 9 новых тестов (`tests/test_metrics.py`), всего 46 тестов — все проходят
 
 ### 2026-03-13 — Улучшение качества анализа (Подход A)
 

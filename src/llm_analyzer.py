@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 
-from src.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_NUM_CTX
+from src.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_NUM_CTX, OLLAMA_KEEP_ALIVE
 from src.metrics import PROMETHEUS_AVAILABLE
 
 if PROMETHEUS_AVAILABLE:
@@ -72,6 +72,7 @@ def call_llm(
         "stream": False,
         "think": False,
         "options": {"temperature": 0, "num_ctx": OLLAMA_NUM_CTX},
+        "keep_alive": OLLAMA_KEEP_ALIVE,
         "format": "json",
     }
     if response_schema:

@@ -23,6 +23,7 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "qwen3:8b"
 OLLAMA_TIMEOUT = 300  # секунд на один вызов LLM (5 мин для длинных на CPU)
 OLLAMA_NUM_CTX = 32768  # контекстное окно (Qwen3-8B поддерживает 40960)
+OLLAMA_KEEP_ALIVE = "30m"  # держать модель в VRAM (default 5m)
 
 # Аудио
 SAMPLE_RATE = 16000  # GigaAM ожидает 16kHz

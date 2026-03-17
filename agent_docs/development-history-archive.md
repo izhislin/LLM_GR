@@ -66,6 +66,16 @@
 - Созданы инструменты просмотра: `src/viewer.py` (CLI) и `src/report_generator.py` (HTML)
 - Отчёт по производительности: `data/performance-report-2026-03-12.md`
 
+### 2026-03-13 — Prometheus-метрики в пайплайне
+
+- Создан `src/metrics.py`: 8 Prometheus-метрик (pipeline timing, RTF, файлы, Ollama tokens/sec, ретраи)
+- `start_metrics_server()` — фоновый HTTP на `:8000/metrics`, `track_stage()` — context manager для замера этапов
+- `llm_analyzer.py`: извлечение Ollama metadata (`eval_count`, `eval_duration`, `prompt_eval_count`), обновление счётчиков
+- `pipeline.py`: 5 этапов обёрнуты в `track_stage`, обновление `pipeline_rtf` и `pipeline_files_total`
+- Import guard (`try/except ImportError`) — `prometheus_client` опциональна, пайплайн работает без неё
+- `requirements.txt`: добавлен `prometheus_client>=0.20`
+- 9 новых тестов (`tests/test_metrics.py`), всего 46 тестов — все проходят
+
 ### 2026-03-12 — Модуль коррекции транскриптов
 
 - Создан `src/text_corrector.py`: двухуровневая коррекция (общий слой + YAML-профиль клиента)
