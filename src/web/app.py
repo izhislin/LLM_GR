@@ -197,11 +197,16 @@ async def lifespan(app: FastAPI):
         api_clients=_api_clients,
     )
 
+    def _on_new_call(call_id: str):
+        """Запустить обработку звонка в фоне сразу после webhook."""
+        _executor.submit(_worker.process_one, call_id)
+        logger.info("Webhook → обработка %s запущена в фоне", call_id)
+
     webhook.set_dependencies(
         db=_db,
         domain_configs=_domain_configs,
         api_keys=webhook_keys,
-        on_new_call=lambda call_id: None,
+        on_new_call=_on_new_call,
     )
     api.set_dependencies(db=_db, domain_configs=_domain_configs)
 
