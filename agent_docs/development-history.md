@@ -9,12 +9,14 @@
 
 ## Записи
 
-### 2026-03-17 — Верификация GPU-инференса Ollama, keep_alive
+### 2026-03-17 — GPU-верификация, keep_alive, webhook real-time
 
-- **GPU-статус:** Подтверждено — Ollama использует GPU (37/37 слоёв на CUDA, RTX 5060 Ti). Ранее казалось, что LLM на CPU, но модель просто выгружалась по idle-таймауту (5 мин default).
+- **GPU-статус:** Подтверждено — Ollama использует GPU (37/37 слоёв на CUDA, RTX 5060 Ti). Модель выгружалась по idle-таймауту (5 мин default), что создавало впечатление работы на CPU.
 - **Бенчмарк:** 74-77 tokens/sec на GPU (Qwen3:8b). Суммаризация диалога ~12 сек. VRAM: GigaAM 1.4 GB + Ollama 6.1 GB = 7.5 GB из 16 GB (запас 8.3 GB).
 - **keep_alive:** Добавлен `OLLAMA_KEEP_ALIVE="30m"` в `config.py`, передаётся per-request через API payload (`llm_analyzer.py`). Без sudo — не требует изменения systemd-сервиса.
-- **Тесты:** 7/7 llm_analyzer passed.
+- **Webhook real-time:** Заменена заглушка `on_new_call=lambda: None` на `_executor.submit(_worker.process_one, call_id)` в `app.py`. Звонки из webhook обрабатываются сразу, а не ждут polling-цикла (до 10 мин). `ThreadPoolExecutor(max_workers=1)` гарантирует последовательную обработку.
+- **Тесты:** 132 passed. 12 failed в `test_gravitel_api.py` — существующая проблема совместимости моков httpx на сервере.
+- **Коммиты:** 2 (f007334, 6aa09f1).
 
 ### 2026-03-15 — Исправление LLM-ошибок, stale detector, VAD threshold
 
