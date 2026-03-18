@@ -299,24 +299,169 @@ function renderExtractedData(ed) {
         </div>`;
 }
 
-function renderTranscript(text) {
-    if (!text) return '';
+function parseTranscriptSegments(text, segments) {
+    // If structured segments available, use them
+    if (segments && segments.length) {
+        return segments.map(s => ({
+            speaker: s.speaker, text: s.text,
+            start: s.start, end: s.end,
+        }));
+    }
+    // Fallback: parse [HH:MM:SS] from transcript text
+    if (!text) return [];
+    return text.split('\n').filter(l => l.trim()).map(line => {
+        const m = line.match(/^\[(\d{2}):(\d{2}):(\d{2})\]\s*(Оператор|Клиент):\s*(.*)$/);
+        if (!m) return null;
+        const [, h, min, s, speaker, content] = m;
+        return { speaker, text: content,
+            start: parseInt(h)*3600 + parseInt(min)*60 + parseInt(s), end: null };
+    }).filter(Boolean);
+}
 
-    const lines = text.split('\n').map(line => {
-        const escaped = escHtml(line);
-        if (escaped.includes('Оператор:')) {
-            return `<div class="t-line t-operator">${escaped}</div>`;
-        } else if (escaped.includes('Клиент:')) {
-            return `<div class="t-line t-client">${escaped}</div>`;
-        }
-        return `<div class="t-line">${escaped}</div>`;
+function fillEndTimes(segments, duration) {
+    const safeDur = (duration && isFinite(duration)) ? duration : Infinity;
+    for (let i = 0; i < segments.length; i++) {
+        if (segments[i].end == null)
+            segments[i].end = (i+1 < segments.length) ? segments[i+1].start : safeDur;
+    }
+    return segments;
+}
+
+function formatTimestamp(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function renderTranscript(text, segments, callId) {
+    const parsed = parseTranscriptSegments(text, segments);
+    if (!parsed.length) return '';
+
+    const linesHtml = parsed.map((seg, i) => {
+        const cls = seg.speaker === 'Оператор' ? 't-operator' : 't-client';
+        const ts = formatTimestamp(seg.start);
+        return `<div class="t-line ${cls}" data-index="${i}" data-start="${seg.start}" data-end="${seg.end || ''}">`
+            + `<span class="t-time">[${ts}]</span> <strong>${escHtml(seg.speaker)}:</strong> ${escHtml(seg.text)}`
+            + `</div>`;
     }).join('');
 
     return `
-        <div class="call-card">
-            <h2>Транскрипт</h2>
-            <div class="transcript">${lines}</div>
+        <div class="call-card" id="player-card">
+            <h2>Запись и транскрипт</h2>
+            <div class="audio-player-wrap">
+                <audio id="call-audio" preload="metadata" src="/api/audio/${encodeURIComponent(callId)}"></audio>
+                <div class="player-controls">
+                    <button id="play-btn" class="btn-play" title="Play/Pause">&#9654;</button>
+                    <span id="current-time" class="player-time">0:00</span>
+                    <div class="progress-bar-wrap" id="progress-wrap">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <span id="total-time" class="player-time">0:00</span>
+                    <select id="speed-select" class="speed-select">
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                    </select>
+                </div>
+            </div>
+            <div class="transcript" id="transcript-box">${linesHtml}</div>
         </div>`;
+}
+
+function initAudioPlayer(segments) {
+    const audio = document.getElementById('call-audio');
+    const playBtn = document.getElementById('play-btn');
+    const progressWrap = document.getElementById('progress-wrap');
+    const progressBar = document.getElementById('progress-bar');
+    const currentTimeEl = document.getElementById('current-time');
+    const totalTimeEl = document.getElementById('total-time');
+    const speedSelect = document.getElementById('speed-select');
+    const transcriptBox = document.getElementById('transcript-box');
+
+    if (!audio || !playBtn) return;
+
+    // Fill end times when duration is known
+    audio.addEventListener('loadedmetadata', () => {
+        totalTimeEl.textContent = formatTimestamp(audio.duration);
+        fillEndTimes(segments, audio.duration);
+    });
+
+    // Play/Pause
+    playBtn.addEventListener('click', () => {
+        if (audio.paused) { audio.play(); playBtn.innerHTML = '&#9646;&#9646;'; }
+        else { audio.pause(); playBtn.innerHTML = '&#9654;'; }
+    });
+
+    // Progress bar update + transcript highlight
+    audio.addEventListener('timeupdate', () => {
+        const t = audio.currentTime;
+        const pct = audio.duration ? (t / audio.duration) * 100 : 0;
+        progressBar.style.width = pct + '%';
+        currentTimeEl.textContent = formatTimestamp(t);
+
+        // Highlight current segment
+        const lines = transcriptBox.querySelectorAll('.t-line');
+        let activeIdx = -1;
+        for (let i = 0; i < segments.length; i++) {
+            if (t >= segments[i].start && (segments[i].end == null || t < segments[i].end)) {
+                activeIdx = i;
+                break;
+            }
+        }
+        lines.forEach((el, i) => {
+            el.classList.toggle('t-active', i === activeIdx);
+        });
+
+        // Auto-scroll to active line
+        if (activeIdx >= 0 && lines[activeIdx]) {
+            const line = lines[activeIdx];
+            const box = transcriptBox;
+            const lineTop = line.offsetTop - box.offsetTop;
+            const boxScroll = box.scrollTop;
+            const boxHeight = box.clientHeight;
+            if (lineTop < boxScroll || lineTop > boxScroll + boxHeight - line.offsetHeight) {
+                box.scrollTop = lineTop - boxHeight / 3;
+            }
+        }
+    });
+
+    // Click on progress bar to seek
+    progressWrap.addEventListener('click', (e) => {
+        const rect = progressWrap.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = pct * audio.duration;
+    });
+
+    // Click on transcript line to seek
+    transcriptBox.addEventListener('click', (e) => {
+        const line = e.target.closest('.t-line');
+        if (!line) return;
+        const start = parseFloat(line.dataset.start);
+        if (!isNaN(start)) {
+            audio.currentTime = start;
+            if (audio.paused) { audio.play(); playBtn.innerHTML = '&#9646;&#9646;'; }
+        }
+    });
+
+    // Speed control
+    speedSelect.addEventListener('change', () => {
+        audio.playbackRate = parseFloat(speedSelect.value);
+    });
+
+    // Audio ended
+    audio.addEventListener('ended', () => {
+        playBtn.innerHTML = '&#9654;';
+    });
+
+    // Handle audio load error
+    audio.addEventListener('error', () => {
+        const wrap = document.querySelector('.audio-player-wrap');
+        if (wrap) wrap.innerHTML = '<div class="player-no-audio">Аудиозапись недоступна</div>';
+    });
 }
 
 async function loadCallDetail() {
@@ -353,7 +498,7 @@ async function loadCallDetail() {
             ${renderQualityScore(result.quality_score)}
             ${renderSummary(result.summary)}
             ${renderExtractedData(result.extracted_data)}
-            ${renderTranscript(result.transcript)}
+            ${renderTranscript(result.transcript, result.transcript_segments, callId)}
 
             ${proc.error_message ? `
             <div class="call-card">
@@ -361,6 +506,11 @@ async function loadCallDetail() {
                 <pre style="color:#721c24">${escHtml(proc.error_message)}</pre>
             </div>` : ''}
         `;
+
+        // Initialize audio player
+        const segments = parseTranscriptSegments(result.transcript, result.transcript_segments);
+        if (result.duration_sec) fillEndTimes(segments, result.duration_sec);
+        initAudioPlayer(segments);
     } catch (e) {
         el.innerHTML = '<div class="loading">Ошибка загрузки</div>';
         console.error('Detail error:', e);
