@@ -192,9 +192,12 @@ def list_calls(
         Список словарей с данными звонков.
     """
     query = """
-        SELECT c.*, p.status AS processing_status, p.retry_count, p.error_message,
-               p.result_json,
-               COALESCE(c.operator_name, o.name) AS operator_name
+        SELECT c.id, c.domain, c.direction, c.result, c.duration, c.wait,
+               c.started_at, c.client_number, c.operator_extension,
+               c.phone, c.record_url, c.source, c.received_at,
+               COALESCE(c.operator_name, o.name) AS operator_name,
+               p.status AS processing_status, p.retry_count, p.error_message,
+               p.result_json
         FROM calls c
         LEFT JOIN processing p ON c.id = p.call_id
         LEFT JOIN operators o ON c.domain = o.domain AND c.operator_extension = o.extension
