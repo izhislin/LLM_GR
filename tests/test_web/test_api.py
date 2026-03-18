@@ -155,3 +155,62 @@ def test_audio_endpoint_not_found(client):
     """404 если аудиофайл не найден."""
     resp = client.get("/api/audio/nonexistent")
     assert resp.status_code == 404
+
+
+def test_list_calls_filter_client_search(client):
+    """Поиск по номеру клиента."""
+    resp = client.get("/api/calls?client_search=9990")
+    data = resp.json()
+    assert data["total"] >= 1
+    assert all("9990" in (c.get("client_number") or "") for c in data["calls"])
+
+
+def test_list_calls_sort_by_duration(client):
+    """Сортировка по длительности."""
+    resp = client.get("/api/calls?sort_by=duration&sort_order=asc")
+    data = resp.json()
+    durations = [c["duration"] for c in data["calls"]]
+    assert durations == sorted(durations)
+
+
+def test_list_calls_sort_by_duration_desc(client):
+    """Сортировка по длительности (убывание)."""
+    resp = client.get("/api/calls?sort_by=duration&sort_order=desc")
+    data = resp.json()
+    durations = [c["duration"] for c in data["calls"]]
+    assert durations == sorted(durations, reverse=True)
+
+
+def test_list_calls_filter_score(db_with_data, tmp_path):
+    """Фильтр по оценке качества."""
+    from src.db import update_processing_status
+    # Добавить result_json с quality_score для call_0
+    result = json.dumps({"quality_score": {"total": 7.5}})
+    update_processing_status(db_with_data, "call_0", "done", result_json=result)
+
+    app = FastAPI()
+    app.include_router(router)
+    set_dependencies(db=db_with_data, domain_configs={})
+    c = TestClient(app)
+
+    resp = c.get("/api/calls?score_min=7&score_max=8")
+    data = resp.json()
+    assert data["total"] >= 1
+    assert any(call["id"] == "call_0" for call in data["calls"])
+
+
+def test_list_calls_result_json_in_response(db_with_data):
+    """result_json присутствует в ответе list_calls."""
+    from src.db import update_processing_status
+    result = json.dumps({"quality_score": {"total": 8.0}})
+    update_processing_status(db_with_data, "call_0", "done", result_json=result)
+
+    app = FastAPI()
+    app.include_router(router)
+    set_dependencies(db=db_with_data, domain_configs={})
+    c = TestClient(app)
+
+    resp = c.get("/api/calls")
+    data = resp.json()
+    call_0 = next(c for c in data["calls"] if c["id"] == "call_0")
+    assert "result_json" in call_0

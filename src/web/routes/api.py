@@ -41,6 +41,11 @@ def api_list_calls(
     date_from: str | None = None,
     date_to: str | None = None,
     operator: str | None = None,
+    client_search: str | None = None,
+    score_min: float | None = None,
+    score_max: float | None = None,
+    sort_by: str | None = None,
+    sort_order: str | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
 ):
@@ -53,10 +58,26 @@ def api_list_calls(
         date_from=date_from,
         date_to=date_to,
         operator=operator,
+        client_search=client_search,
+        score_min=score_min,
+        score_max=score_max,
+        sort_by=sort_by or "started_at",
+        sort_order=sort_order or "desc",
         page=page,
         per_page=per_page,
     )
-    total = get_calls_count(_db, domain=domain, status=status)
+    total = get_calls_count(
+        _db,
+        domain=domain,
+        status=status,
+        direction=direction,
+        operator=operator,
+        date_from=date_from,
+        date_to=date_to,
+        client_search=client_search,
+        score_min=score_min,
+        score_max=score_max,
+    )
     return {"calls": calls, "total": total, "page": page, "per_page": per_page}
 
 

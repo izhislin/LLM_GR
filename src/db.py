@@ -163,6 +163,11 @@ def list_calls(
     date_from: str | None = None,
     date_to: str | None = None,
     operator: str | None = None,
+    client_search: str | None = None,
+    score_min: float | None = None,
+    score_max: float | None = None,
+    sort_by: str = "started_at",
+    sort_order: str = "desc",
     page: int = 1,
     per_page: int = 50,
 ) -> list[dict]:
@@ -175,6 +180,11 @@ def list_calls(
         date_from: начало диапазона дат (включительно).
         date_to: конец диапазона дат (не включая).
         operator: фильтр по добавочному оператора.
+        client_search: LIKE-поиск по номеру клиента.
+        score_min: минимальная оценка качества.
+        score_max: максимальная оценка качества.
+        sort_by: столбец сортировки (started_at, duration, score).
+        sort_order: направление сортировки (asc, desc).
         page: номер страницы (начиная с 1).
         per_page: количество записей на странице.
 
@@ -183,6 +193,7 @@ def list_calls(
     """
     query = """
         SELECT c.*, p.status AS processing_status, p.retry_count, p.error_message,
+               p.result_json,
                COALESCE(c.operator_name, o.name) AS operator_name
         FROM calls c
         LEFT JOIN processing p ON c.id = p.call_id
@@ -209,8 +220,24 @@ def list_calls(
     if operator is not None:
         query += " AND c.operator_extension = ?"
         params.append(operator)
+    if client_search is not None:
+        query += " AND c.client_number LIKE ?"
+        params.append(f"%{client_search}%")
+    if score_min is not None:
+        query += " AND json_extract(p.result_json, '$.quality_score.total') >= ?"
+        params.append(score_min)
+    if score_max is not None:
+        query += " AND json_extract(p.result_json, '$.quality_score.total') <= ?"
+        params.append(score_max)
 
-    query += " ORDER BY c.started_at DESC"
+    allowed_sorts = {
+        "started_at": "c.started_at",
+        "duration": "c.duration",
+        "score": "json_extract(p.result_json, '$.quality_score.total')",
+    }
+    sort_col = allowed_sorts.get(sort_by, "c.started_at")
+    order = "ASC" if sort_order == "asc" else "DESC"
+    query += f" ORDER BY {sort_col} {order}"
     query += " LIMIT ? OFFSET ?"
     params.append(per_page)
     params.append((page - 1) * per_page)
@@ -223,12 +250,26 @@ def get_calls_count(
     conn: sqlite3.Connection,
     domain: str | None = None,
     status: str | None = None,
+    direction: str | None = None,
+    operator: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    client_search: str | None = None,
+    score_min: float | None = None,
+    score_max: float | None = None,
 ) -> int:
     """Подсчёт звонков с опциональными фильтрами.
 
     Args:
         domain: фильтр по домену.
         status: фильтр по статусу обработки.
+        direction: фильтр по направлению (in/out).
+        operator: фильтр по добавочному оператора.
+        date_from: начало диапазона дат (включительно).
+        date_to: конец диапазона дат (не включая).
+        client_search: LIKE-поиск по номеру клиента.
+        score_min: минимальная оценка качества.
+        score_max: максимальная оценка качества.
 
     Returns:
         Количество звонков.
@@ -237,6 +278,7 @@ def get_calls_count(
         SELECT COUNT(*) AS cnt
         FROM calls c
         LEFT JOIN processing p ON c.id = p.call_id
+        LEFT JOIN operators o ON c.domain = o.domain AND c.operator_extension = o.extension
         WHERE 1=1
     """
     params: list = []
@@ -247,6 +289,27 @@ def get_calls_count(
     if status is not None:
         query += " AND p.status = ?"
         params.append(status)
+    if direction is not None:
+        query += " AND c.direction = ?"
+        params.append(direction)
+    if operator is not None:
+        query += " AND c.operator_extension = ?"
+        params.append(operator)
+    if date_from is not None:
+        query += " AND c.started_at >= ?"
+        params.append(date_from)
+    if date_to is not None:
+        query += " AND c.started_at < ?"
+        params.append(date_to)
+    if client_search is not None:
+        query += " AND c.client_number LIKE ?"
+        params.append(f"%{client_search}%")
+    if score_min is not None:
+        query += " AND json_extract(p.result_json, '$.quality_score.total') >= ?"
+        params.append(score_min)
+    if score_max is not None:
+        query += " AND json_extract(p.result_json, '$.quality_score.total') <= ?"
+        params.append(score_max)
 
     cursor = conn.execute(query, params)
     return cursor.fetchone()["cnt"]
