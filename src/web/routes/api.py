@@ -1,8 +1,10 @@
 """REST API для веб-интерфейса."""
 
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from src.db import (
     get_call,
@@ -122,3 +124,15 @@ def api_operators(domain: str):
 def api_departments(domain: str):
     """Список отделов домена."""
     return list_departments(_db, domain)
+
+
+@router.get("/audio/{call_id}")
+def api_audio(call_id: str):
+    """Отдать аудиофайл звонка."""
+    proc = get_processing(_db, call_id)
+    if not proc or not proc.get("audio_path"):
+        raise HTTPException(status_code=404, detail="Audio not found")
+    audio_path = Path(proc["audio_path"])
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file missing")
+    return FileResponse(audio_path, media_type="audio/mpeg")

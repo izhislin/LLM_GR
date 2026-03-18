@@ -109,3 +109,47 @@ def test_domains_list(client):
     """GET /api/domains — список доменов."""
     resp = client.get("/api/domains")
     assert resp.status_code == 200
+
+
+@pytest.fixture
+def db_with_audio(tmp_path):
+    """БД с тестовыми данными и аудиофайлом."""
+    from src.db import init_db, insert_call, insert_processing, update_processing_status, upsert_operator
+    db = init_db(str(tmp_path / "test.db"))
+    call = {
+        "id": "call_0", "domain": "test.aicall.ru", "direction": "in",
+        "result": "success", "duration": 60, "wait": 5,
+        "started_at": "2026-03-13T14:00:00Z",
+        "client_number": "79990000000", "operator_extension": "701",
+        "operator_name": None, "phone": "74951112233",
+        "record_url": "https://records.aicall.ru/test/call_0.mp3",
+        "source": "webhook", "received_at": "2026-03-13T14:00:05Z",
+    }
+    insert_call(db, call)
+    insert_processing(db, "call_0", status="done")
+    audio_file = tmp_path / "call_0.mp3"
+    audio_file.write_bytes(b"fake-mp3-data")
+    update_processing_status(db, "call_0", "done", audio_path=str(audio_file))
+    return db
+
+
+@pytest.fixture
+def client_with_audio(db_with_audio):
+    app = FastAPI()
+    app.include_router(router)
+    set_dependencies(db=db_with_audio, domain_configs={})
+    return TestClient(app)
+
+
+def test_audio_endpoint(client_with_audio):
+    """GET /api/audio/{call_id} — отдача аудиофайла."""
+    resp = client_with_audio.get("/api/audio/call_0")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "audio/mpeg"
+    assert resp.content == b"fake-mp3-data"
+
+
+def test_audio_endpoint_not_found(client):
+    """404 если аудиофайл не найден."""
+    resp = client.get("/api/audio/nonexistent")
+    assert resp.status_code == 404
