@@ -778,4 +778,110 @@ document.addEventListener('DOMContentLoaded', () => {
     if (qs('#call-detail')) {
         loadCallDetail();
     }
+
+    if (qs('#chat-container')) {
+        setupChat();
+    }
 });
+
+// ── Chat ────────────────────────────────────────────────────────────────────
+
+function setupChat() {
+    const messages = qs('#chat-messages');
+    const input = qs('#chat-input');
+    const sendBtn = qs('#chat-send');
+    const clearBtn = qs('#chat-clear');
+    let chatHistory = [];
+    let isStreaming = false;
+
+    function addMessage(role, content) {
+        const div = document.createElement('div');
+        div.className = `chat-msg chat-${role}`;
+        div.textContent = content;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+        return div;
+    }
+
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text || isStreaming) return;
+
+        addMessage('user', text);
+        chatHistory.push({ role: 'user', content: text });
+        input.value = '';
+        input.style.height = 'auto';
+
+        isStreaming = true;
+        sendBtn.disabled = true;
+        sendBtn.textContent = '...';
+
+        const msgDiv = addMessage('assistant', '');
+        let fullResponse = '';
+
+        try {
+            const resp = await fetch(`${API}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: chatHistory }),
+            });
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+
+                const lines = buf.split('\n');
+                buf = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.error) {
+                            msgDiv.textContent += `\n[Ошибка: ${data.error}]`;
+                            break;
+                        }
+                        if (data.token) {
+                            fullResponse += data.token;
+                            msgDiv.textContent = fullResponse;
+                            messages.scrollTop = messages.scrollHeight;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            chatHistory.push({ role: 'assistant', content: fullResponse });
+        } catch (e) {
+            msgDiv.textContent = `[Ошибка подключения: ${e.message}]`;
+        }
+
+        isStreaming = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Отправить';
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+    });
+
+    clearBtn.addEventListener('click', () => {
+        chatHistory = [];
+        messages.innerHTML = '';
+    });
+}

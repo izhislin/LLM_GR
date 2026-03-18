@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Чат с LLM{% endblock %}
+{% block content %}
+<div id="chat-container">
+    <div id="chat-messages"></div>
+    <div class="chat-input-wrap">
+        <textarea id="chat-input" placeholder="Введите сообщение..." rows="2" autocomplete="off"></textarea>
+        <button id="chat-send" class="btn btn-sync">Отправить</button>
+    </div>
+    <div class="chat-meta">
+        <span id="chat-model">qwen3:8b</span>
+        <button id="chat-clear" class="btn btn-reset">Очистить</button>
+    </div>
+</div>
+{% endblock %}

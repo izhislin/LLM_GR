@@ -297,6 +297,12 @@ async def call_detail(request: Request, call_id: str):
     })
 
 
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_page(request: Request):
+    """Страница чата с LLM."""
+    return templates.TemplateResponse("chat.html", {"request": request})
+
+
 @app.post("/api/sync/{domain}")
 async def manual_sync(domain: str):
     """Ручной запуск polling для домена."""

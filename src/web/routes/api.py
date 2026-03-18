@@ -1,12 +1,14 @@
 """REST API для веб-интерфейса."""
 
+import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+import requests
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import FileResponse, StreamingResponse
 
-from src.config import DATA_DIR
+from src.config import DATA_DIR, OLLAMA_MODEL, OLLAMA_NUM_CTX, OLLAMA_KEEP_ALIVE
 from src.db import (
     get_call,
     list_calls,
@@ -160,3 +162,38 @@ def api_audio(call_id: str):
     if not audio_path.exists():
         raise HTTPException(status_code=404, detail="Audio file missing")
     return FileResponse(audio_path, media_type="audio/mpeg")
+
+
+@router.post("/chat")
+async def api_chat(request: Request):
+    """Стриминг чата с LLM через Ollama."""
+    body = await request.json()
+    messages = body.get("messages", [])
+    if not messages:
+        raise HTTPException(status_code=400, detail="No messages")
+
+    def stream():
+        try:
+            resp = requests.post(
+                "http://localhost:11434/api/chat",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "messages": messages,
+                    "stream": True,
+                    "options": {"num_ctx": OLLAMA_NUM_CTX},
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                },
+                stream=True,
+                timeout=300,
+            )
+            resp.raise_for_status()
+            for line in resp.iter_lines():
+                if line:
+                    data = json.loads(line)
+                    token = data.get("message", {}).get("content", "")
+                    done = data.get("done", False)
+                    yield f"data: {json.dumps({'token': token, 'done': done}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
