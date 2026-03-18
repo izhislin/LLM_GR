@@ -130,14 +130,16 @@ def db_with_audio(tmp_path):
     audio_file = tmp_path / "call_0.mp3"
     audio_file.write_bytes(b"fake-mp3-data")
     update_processing_status(db, "call_0", "done", audio_path=str(audio_file))
-    return db
+    return db, tmp_path
 
 
 @pytest.fixture
-def client_with_audio(db_with_audio):
+def client_with_audio(db_with_audio, monkeypatch):
+    db, tmp_path = db_with_audio
+    monkeypatch.setattr("src.web.routes.api.DATA_DIR", tmp_path)
     app = FastAPI()
     app.include_router(router)
-    set_dependencies(db=db_with_audio, domain_configs={})
+    set_dependencies(db=db, domain_configs={})
     return TestClient(app)
 
 

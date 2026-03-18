@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
+from src.config import DATA_DIR
 from src.db import (
     get_call,
     list_calls,
@@ -132,7 +133,9 @@ def api_audio(call_id: str):
     proc = get_processing(_db, call_id)
     if not proc or not proc.get("audio_path"):
         raise HTTPException(status_code=404, detail="Audio not found")
-    audio_path = Path(proc["audio_path"])
+    audio_path = Path(proc["audio_path"]).resolve()
+    if not audio_path.is_relative_to(Path(DATA_DIR).resolve()):
+        raise HTTPException(status_code=404, detail="Audio not found")
     if not audio_path.exists():
         raise HTTPException(status_code=404, detail="Audio file missing")
     return FileResponse(audio_path, media_type="audio/mpeg")
