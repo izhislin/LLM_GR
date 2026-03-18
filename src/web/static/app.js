@@ -4,6 +4,8 @@ const API = '/api';
 let currentPage = 1;
 const perPage = 50;
 let autoRefreshTimer = null;
+let currentSort = 'started_at';
+let currentOrder = 'desc';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +95,47 @@ async function loadDomains() {
     } catch (e) { console.error('Domains error:', e); }
 }
 
+// ── Operators filter ────────────────────────────────────────────────────────
+
+async function loadOperators() {
+    try {
+        const domainSel = qs('#filter-domain');
+        const domain = domainSel?.value;
+        const opSel = qs('#filter-operator');
+        if (!opSel) return;
+
+        // Clear existing options except first
+        while (opSel.options.length > 1) opSel.remove(1);
+
+        if (!domain) {
+            // Load operators for all domains
+            const resp = await fetch(`${API}/domains`);
+            const domains = await resp.json();
+            for (const d of domains) {
+                const opResp = await fetch(`${API}/operators/${d.domain}`);
+                const ops = await opResp.json();
+                ops.forEach(op => {
+                    if (!op.name) return;
+                    const opt = document.createElement('option');
+                    opt.value = op.extension;
+                    opt.textContent = op.name;
+                    opSel.appendChild(opt);
+                });
+            }
+        } else {
+            const resp = await fetch(`${API}/operators/${domain}`);
+            const ops = await resp.json();
+            ops.forEach(op => {
+                if (!op.name) return;
+                const opt = document.createElement('option');
+                opt.value = op.extension;
+                opt.textContent = op.name;
+                opSel.appendChild(opt);
+            });
+        }
+    } catch (e) { console.error('Operators error:', e); }
+}
+
 // ── Calls list ──────────────────────────────────────────────────────────────
 
 function buildQuery() {
@@ -102,12 +145,22 @@ function buildQuery() {
     const status = qs('#filter-status')?.value;
     const dateFrom = qs('#filter-date-from')?.value;
     const dateTo = qs('#filter-date-to')?.value;
+    const operator = qs('#filter-operator')?.value;
+    const clientSearch = qs('#filter-client')?.value?.trim();
+    const scoreMin = qs('#filter-score-min')?.value;
+    const scoreMax = qs('#filter-score-max')?.value;
 
     if (domain) params.set('domain', domain);
     if (direction) params.set('direction', direction);
     if (status) params.set('status', status);
     if (dateFrom) params.set('date_from', dateFrom);
     if (dateTo) params.set('date_to', dateTo);
+    if (operator) params.set('operator', operator);
+    if (clientSearch) params.set('client_search', clientSearch);
+    if (scoreMin) params.set('score_min', scoreMin);
+    if (scoreMax) params.set('score_max', scoreMax);
+    params.set('sort_by', currentSort);
+    params.set('sort_order', currentOrder);
     params.set('page', currentPage);
     params.set('per_page', perPage);
     return params.toString();
@@ -122,12 +175,13 @@ async function loadCalls() {
         const data = await resp.json();
 
         if (!data.calls.length) {
-            body.innerHTML = '<tr><td colspan="7" class="loading">Нет звонков</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="loading">Нет звонков</td></tr>';
             return;
         }
 
         body.innerHTML = data.calls.map(c => {
             let scoreHtml = '—';
+            let topicHtml = '—';
             if (c.processing_status === 'done' && c.result_json) {
                 try {
                     const res = JSON.parse(c.result_json || '{}');
@@ -135,23 +189,28 @@ async function loadCalls() {
                     if (total != null) {
                         scoreHtml = `<span class="score ${scoreClass(total)}">${total}/10</span>`;
                     }
+                    if (res.summary?.topic) {
+                        const topic = res.summary.topic;
+                        topicHtml = escHtml(topic.length > 50 ? topic.slice(0, 47) + '...' : topic);
+                    }
                 } catch (e) {}
             }
 
             return `<tr class="clickable" onclick="location.href='/call/${c.id}'">
                 <td>${formatTime(c.started_at)}</td>
                 <td>${dirBadge(c.direction)}</td>
-                <td>${c.client_number || '—'}</td>
-                <td>${c.operator_name || c.operator_extension || '—'}</td>
+                <td>${escHtml(c.client_number) || '—'}</td>
+                <td>${escHtml(c.operator_name || c.operator_extension) || '—'}</td>
                 <td>${formatDuration(c.duration)}</td>
                 <td>${scoreHtml}</td>
+                <td class="topic-cell">${topicHtml}</td>
                 <td>${statusBadge(c.processing_status)}</td>
             </tr>`;
         }).join('');
 
         renderPagination(data.total, data.page, data.per_page);
     } catch (e) {
-        body.innerHTML = '<tr><td colspan="7" class="loading">Ошибка загрузки</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" class="loading">Ошибка загрузки</td></tr>';
         console.error('Calls error:', e);
     }
 }
@@ -348,7 +407,7 @@ function renderTranscript(text, segments, callId) {
     }).join('');
 
     return `
-        <div class="call-card" id="player-card">
+        <div class="call-card" id="section-player">
             <h2>Запись и транскрипт</h2>
             <div class="audio-player-wrap">
                 <audio id="call-audio" preload="metadata" src="/api/audio/${encodeURIComponent(callId)}"></audio>
@@ -479,25 +538,40 @@ async function loadCallDetail() {
             try { result = JSON.parse(proc.result_json); } catch (e) {}
         }
 
+        const navItems = [
+            { id: 'section-meta', label: 'Метаданные' },
+            { id: 'section-quality', label: 'Оценка', show: !!result.quality_score },
+            { id: 'section-summary', label: 'Резюме', show: !!result.summary },
+            { id: 'section-data', label: 'Данные', show: !!result.extracted_data },
+            { id: 'section-player', label: 'Запись', show: true },
+        ].filter(n => n.show !== false);
+
+        const navHtml = `<nav class="detail-nav">
+            ${navItems.map(n => `<a href="#${n.id}" class="detail-nav-link">${n.label}</a>`).join('')}
+        </nav>`;
+
         el.innerHTML = `
-            <div class="call-card">
-                <h2>Метаданные</h2>
-                <div class="meta-grid">
-                    <div class="meta-item"><label>ID</label><span>${data.id}</span></div>
-                    <div class="meta-item"><label>Домен</label><span>${data.domain}</span></div>
-                    <div class="meta-item"><label>Дата</label><span>${formatTimeFull(data.started_at)}</span></div>
-                    <div class="meta-item"><label>Направление</label><span>${dirBadge(data.direction)}</span></div>
-                    <div class="meta-item"><label>Длительность</label><span>${formatDuration(data.duration)}</span></div>
-                    <div class="meta-item"><label>Клиент</label><span>${data.client_number || '—'}</span></div>
-                    <div class="meta-item"><label>Оператор</label><span>${data.operator_name || data.operator_extension || '—'}</span></div>
-                    <div class="meta-item"><label>Статус</label>${statusBadge(proc.status)}</div>
-                    <div class="meta-item"><label>Время обработки</label><span>${proc.processing_time_sec ? proc.processing_time_sec.toFixed(1) + ' сек' : '—'}</span></div>
+            ${navHtml}
+            <div id="section-meta">
+                <div class="call-card">
+                    <h2>Метаданные</h2>
+                    <div class="meta-grid">
+                        <div class="meta-item"><label>ID</label><span>${data.id}</span></div>
+                        <div class="meta-item"><label>Домен</label><span>${data.domain}</span></div>
+                        <div class="meta-item"><label>Дата</label><span>${formatTimeFull(data.started_at)}</span></div>
+                        <div class="meta-item"><label>Направление</label><span>${dirBadge(data.direction)}</span></div>
+                        <div class="meta-item"><label>Длительность</label><span>${formatDuration(data.duration)}</span></div>
+                        <div class="meta-item"><label>Клиент</label><span>${data.client_number || '—'}</span></div>
+                        <div class="meta-item"><label>Оператор</label><span>${data.operator_name || data.operator_extension || '—'}</span></div>
+                        <div class="meta-item"><label>Статус</label>${statusBadge(proc.status)}</div>
+                        <div class="meta-item"><label>Время обработки</label><span>${proc.processing_time_sec ? proc.processing_time_sec.toFixed(1) + ' сек' : '—'}</span></div>
+                    </div>
                 </div>
             </div>
 
-            ${renderQualityScore(result.quality_score)}
-            ${renderSummary(result.summary)}
-            ${renderExtractedData(result.extracted_data)}
+            <div id="section-quality">${renderQualityScore(result.quality_score)}</div>
+            <div id="section-summary">${renderSummary(result.summary)}</div>
+            <div id="section-data">${renderExtractedData(result.extracted_data)}</div>
             ${renderTranscript(result.transcript, result.transcript_segments, callId)}
 
             ${proc.error_message ? `
@@ -548,9 +622,93 @@ function setupSync() {
 // ── Filters ─────────────────────────────────────────────────────────────────
 
 function setupFilters() {
-    ['#filter-domain', '#filter-direction', '#filter-status', '#filter-date-from', '#filter-date-to'].forEach(sel => {
+    ['#filter-domain', '#filter-direction', '#filter-status', '#filter-operator',
+     '#filter-date-from', '#filter-date-to', '#filter-score-min', '#filter-score-max'].forEach(sel => {
         const el = qs(sel);
         if (el) el.addEventListener('change', () => { currentPage = 1; loadCalls(); });
+    });
+
+    // Client search: debounce on input
+    const clientInput = qs('#filter-client');
+    if (clientInput) {
+        let debounce = null;
+        clientInput.addEventListener('input', () => {
+            clearTimeout(debounce);
+            debounce = setTimeout(() => { currentPage = 1; loadCalls(); }, 400);
+        });
+    }
+
+    // Reload operators when domain changes
+    const domainSel = qs('#filter-domain');
+    if (domainSel) {
+        domainSel.addEventListener('change', () => {
+            loadOperators();
+        });
+    }
+}
+
+// ── Sorting ──────────────────────────────────────────────────────────────────
+
+function setupSorting() {
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = th.dataset.sort;
+            if (currentSort === col) {
+                currentOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort = col;
+                currentOrder = col === 'score' ? 'desc' : 'desc';
+            }
+            updateSortIcons();
+            currentPage = 1;
+            loadCalls();
+        });
+    });
+    updateSortIcons();
+}
+
+function updateSortIcons() {
+    document.querySelectorAll('.sortable').forEach(th => {
+        const icon = th.querySelector('.sort-icon');
+        if (!icon) return;
+        if (th.dataset.sort === currentSort) {
+            icon.textContent = currentOrder === 'desc' ? '\u25BC' : '\u25B2';
+            icon.style.opacity = '1';
+        } else {
+            icon.textContent = '\u25BC';
+            icon.style.opacity = '0.3';
+        }
+    });
+}
+
+// ── Date presets ─────────────────────────────────────────────────────────────
+
+function setupDatePresets() {
+    document.querySelectorAll('.btn-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const preset = btn.dataset.preset;
+            const fromEl = qs('#filter-date-from');
+            const toEl = qs('#filter-date-to');
+            const today = new Date();
+            const fmt = d => d.toISOString().split('T')[0];
+
+            if (preset === 'today') {
+                fromEl.value = fmt(today);
+                toEl.value = '';
+            } else if (preset === 'yesterday') {
+                const y = new Date(today);
+                y.setDate(y.getDate() - 1);
+                fromEl.value = fmt(y);
+                toEl.value = fmt(today);
+            } else if (preset === 'week') {
+                const w = new Date(today);
+                w.setDate(w.getDate() - 7);
+                fromEl.value = fmt(w);
+                toEl.value = '';
+            }
+            currentPage = 1;
+            loadCalls();
+        });
     });
 }
 
@@ -562,8 +720,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (qs('#calls-table')) {
         loadCalls();
+        loadOperators();
         setupFilters();
         setupSync();
+        setupSorting();
+        setupDatePresets();
         autoRefreshTimer = setInterval(() => { loadCalls(); loadStats(); }, 30000);
     }
 
