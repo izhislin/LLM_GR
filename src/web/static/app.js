@@ -52,6 +52,7 @@ function statusBadge(status) {
 function dirBadge(dir) {
     if (dir === 'in') return '<span class="dir-in">&#x2193; Вх</span>';
     if (dir === 'out') return '<span class="dir-out">&#x2191; Исх</span>';
+    if (dir === 'missed') return '<span class="dir-missed">&#x2717; Пропущен</span>';
     return dir || '—';
 }
 

@@ -108,6 +108,7 @@ tr.clickable { cursor: pointer; }
 /* Direction */
 .dir-in { color: #28a745; }
 .dir-out { color: #007bff; }
+.dir-missed { color: #dc3545; }
 
 /* Pagination */
 .pagination {
