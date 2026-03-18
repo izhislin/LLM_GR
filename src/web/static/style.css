@@ -78,6 +78,8 @@ td {
 }
 tr:hover { background: #f9f9f9; }
 tr.clickable { cursor: pointer; }
+tr.topic-row td { border-top: none; padding-top: 0; }
+tr.topic-row:hover { background: #f9f9f9; }
 
 /* Status badges */
 .status {
@@ -485,12 +487,9 @@ tr.clickable { cursor: pointer; }
 
 /* Topic column */
 .topic-cell {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.85rem;
-    color: #555;
+    font-size: 0.82rem;
+    color: #777;
+    padding-bottom: 8px;
 }
 
 /* ── Detail page navigation ──────────────────────────────────────────────── */

@@ -176,7 +176,7 @@ async function loadCalls() {
         const data = await resp.json();
 
         if (!data.calls.length) {
-            body.innerHTML = '<tr><td colspan="8" class="loading">Нет звонков</td></tr>';
+            body.innerHTML = '<tr><td colspan="7" class="loading">Нет звонков</td></tr>';
             return;
         }
 
@@ -191,11 +191,14 @@ async function loadCalls() {
                         scoreHtml = `<span class="score ${scoreClass(total)}">${total}/10</span>`;
                     }
                     if (res.summary?.topic) {
-                        const topic = res.summary.topic;
-                        topicHtml = escHtml(topic.length > 50 ? topic.slice(0, 47) + '...' : topic);
+                        topicHtml = escHtml(res.summary.topic);
                     }
                 } catch (e) {}
             }
+
+            const topicRow = topicHtml !== '—'
+                ? `<tr class="topic-row clickable" onclick="location.href='/call/${c.id}'"><td colspan="7" class="topic-cell">${topicHtml}</td></tr>`
+                : '';
 
             return `<tr class="clickable" onclick="location.href='/call/${c.id}'">
                 <td>${formatTime(c.started_at)}</td>
@@ -204,14 +207,13 @@ async function loadCalls() {
                 <td>${escHtml(c.operator_name || c.operator_extension) || '—'}</td>
                 <td>${formatDuration(c.duration)}</td>
                 <td>${scoreHtml}</td>
-                <td class="topic-cell">${topicHtml}</td>
                 <td>${statusBadge(c.processing_status)}</td>
-            </tr>`;
+            </tr>${topicRow}`;
         }).join('');
 
         renderPagination(data.total, data.page, data.per_page);
     } catch (e) {
-        body.innerHTML = '<tr><td colspan="8" class="loading">Ошибка загрузки</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" class="loading">Ошибка загрузки</td></tr>';
         console.error('Calls error:', e);
     }
 }
