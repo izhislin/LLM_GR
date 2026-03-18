@@ -52,6 +52,8 @@ header a { color: #fff; text-decoration: none; }
     cursor: pointer;
     font-size: 0.9rem;
 }
+.btn-reset { background: #e8e8e8; color: #333; }
+.btn-reset:hover { background: #ddd; }
 .btn-sync { background: #16213e; color: #fff; }
 .btn-sync:hover { background: #0f3460; }
 

@@ -645,6 +645,26 @@ function setupSync() {
     });
 }
 
+function setupReset() {
+    const btn = qs('#btn-reset');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        ['#filter-domain', '#filter-direction', '#filter-status', '#filter-operator'].forEach(sel => {
+            const el = qs(sel);
+            if (el) el.value = '';
+        });
+        ['#filter-date-from', '#filter-date-to', '#filter-client', '#filter-score-min', '#filter-score-max'].forEach(sel => {
+            const el = qs(sel);
+            if (el) el.value = '';
+        });
+        currentSort = 'started_at';
+        currentOrder = 'desc';
+        currentPage = 1;
+        updateSortIcons();
+        loadCalls();
+    });
+}
+
 // ── Filters ─────────────────────────────────────────────────────────────────
 
 function setupFilters() {
@@ -749,6 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadOperators();
         setupFilters();
         setupSync();
+        setupReset();
         setupSorting();
         setupDatePresets();
         autoRefreshTimer = setInterval(() => { loadCalls(); loadStats(); }, 30000);
