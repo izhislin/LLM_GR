@@ -82,6 +82,12 @@ def process_audio_file(
     with track_stage("correct"):
         dialogue_text = correct_text(dialogue_text, profile)
 
+    # Build structured segments with corrected text
+    transcript_segments = [
+        {"speaker": t.speaker, "text": correct_text(t.text, profile), "start": t.start, "end": t.end}
+        for t in dialogue
+    ]
+
     # Сохраняем транскрипт (уже после коррекции)
     transcript_file = transcripts_dir / f"{audio_path.stem}.txt"
     transcript_file.write_text(dialogue_text, encoding="utf-8")
@@ -107,6 +113,7 @@ def process_audio_file(
         "processed_at": datetime.now(timezone.utc).isoformat(),
         "duration_sec": info["duration_sec"],
         "transcript": dialogue_text,
+        "transcript_segments": transcript_segments,
         **analysis,
     }
 
