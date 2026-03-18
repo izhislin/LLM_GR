@@ -204,7 +204,7 @@ async function loadCalls() {
                 <td>${formatTime(c.started_at)}</td>
                 <td>${dirBadge(c.direction)}</td>
                 <td>${escHtml(c.client_number) || '—'}</td>
-                <td>${escHtml(c.operator_name || c.operator_extension) || '—'}</td>
+                <td><a href="#" class="operator-link" data-ext="${escHtml(c.operator_extension || '')}" onclick="filterByOperator(this);return false">${escHtml(c.operator_name || c.operator_extension) || '—'}</a></td>
                 <td>${formatDuration(c.duration)}</td>
                 <td>${scoreHtml}</td>
                 <td>${statusBadge(c.processing_status)}</td>
@@ -233,6 +233,29 @@ function renderPagination(total, page, pp) {
 }
 
 function goToPage(p) { currentPage = p; loadCalls(); }
+
+function filterByOperator(el) {
+    event.stopPropagation();
+    const ext = el.dataset.ext;
+    if (!ext) return;
+    const sel = qs('#filter-operator');
+    if (sel) {
+        // Ensure option exists
+        let found = false;
+        for (const opt of sel.options) {
+            if (opt.value === ext) { found = true; break; }
+        }
+        if (!found) {
+            const opt = document.createElement('option');
+            opt.value = ext;
+            opt.textContent = el.textContent;
+            sel.appendChild(opt);
+        }
+        sel.value = ext;
+        currentPage = 1;
+        loadCalls();
+    }
+}
 
 // ── Call detail ─────────────────────────────────────────────────────────────
 
