@@ -41,10 +41,16 @@ def set_dependencies(
 
 
 @router.post("/webhook/{domain}/history")
-async def receive_history(domain: str, request: Request, x_api_key: str = Header(None)):
+@router.post("/webhook/{domain}/history/{event_type}")
+async def receive_history(domain: str, request: Request, x_api_key: str = Header(None), event_type: str = ""):
     """Принять webhook от АТС о завершённом звонке.
 
-    Маршрут: POST /webhook/{domain}/history
+    Маршруты:
+    - POST /webhook/{domain}/history
+    - POST /webhook/{domain}/history/{event_type}
+
+    Гравител АТС добавляет суффикс к URL: /event (все события) или /history
+    (завершённые звонки). Принимаем оба варианта.
 
     Проверки:
     1. Домен должен быть в конфигурации.

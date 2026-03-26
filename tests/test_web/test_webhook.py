@@ -107,3 +107,27 @@ def test_webhook_short_call_skipped(client):
         headers={"X-API-KEY": "secret-key"},
     )
     assert resp.status_code == 200
+
+
+def test_webhook_event_suffix(client):
+    """Гравител шлёт на /history/event — должен работать."""
+    event_call = {**SAMPLE_WEBHOOK, "id": "event1"}
+    resp = client.post(
+        "/webhook/test.aicall.ru/history/event",
+        json=event_call,
+        headers={"X-API-KEY": "secret-key"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+
+def test_webhook_history_suffix(client):
+    """Гравител шлёт на /history/history — должен работать."""
+    history_call = {**SAMPLE_WEBHOOK, "id": "history1"}
+    resp = client.post(
+        "/webhook/test.aicall.ru/history/history",
+        json=history_call,
+        headers={"X-API-KEY": "secret-key"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
