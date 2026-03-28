@@ -7,7 +7,7 @@ services:
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - ENABLE_SIGNUP=false
-      - WEBUI_NAME=Gravitel AI
+      # - WEBUI_NAME=Gravitel AI
     volumes:
       - open-webui-data:/app/backend/data
       - ./config/open-webui-custom.css:/app/backend/open_webui/static/custom.css:ro
