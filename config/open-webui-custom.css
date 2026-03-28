@@ -1,0 +1,64 @@
+/* === Gravitel Corporate Theme for Open WebUI === */
+
+/* Sidebar — deep indigo gradient */
+#sidebar {
+  background: linear-gradient(180deg, #312e81 0%, #1e1b4b 100%) !important;
+}
+
+/* Primary action buttons */
+button.bg-black,
+button[class*="bg-blue"],
+button.bg-gray-900 {
+  background-color: #4F46E5 !important;
+  border-color: #4F46E5 !important;
+}
+button.bg-black:hover,
+button[class*="bg-blue"]:hover,
+button.bg-gray-900:hover {
+  background-color: #4338ca !important;
+}
+
+/* Send button */
+button[aria-label="Send"] {
+  background-color: #4F46E5 !important;
+}
+button[aria-label="Send"]:hover {
+  background-color: #4338ca !important;
+}
+
+/* Toggle switches — indigo instead of default */
+input[type="checkbox"]:checked + span,
+.toggle:checked,
+[role="switch"][aria-checked="true"] {
+  background-color: #4F46E5 !important;
+}
+
+/* Links */
+a.text-blue-500,
+a.text-blue-600,
+.text-blue-500,
+.text-blue-600 {
+  color: #4F46E5 !important;
+}
+
+/* Focus rings */
+*:focus-visible {
+  outline-color: #818cf8 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar-thumb {
+  background: #818cf8 !important;
+  border-radius: 4px;
+}
+
+/* Selection color */
+::selection {
+  background: #c7d2fe;
+  color: #1e1b4b;
+}
+
+/* App name in sidebar header — replace with Gravitel AI */
+#sidebar .font-bold.text-lg::after {
+  content: '' !important;
+}
