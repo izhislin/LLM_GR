@@ -13,6 +13,7 @@
 - `agent_docs/guides/server-access.md` — SSH-доступ к серверу AI-лаборатории; параметры подключения и алиасы.
 - `agent_docs/guides/logging.md` — логирование скриптов/интеграций.
 - `agent_docs/guides/archiving-and-temp.md` — архивация и временные файлы.
+- `agent_docs/guides/llm-api.md` — инструкция по OpenAI-compatible API: подключение, токен, команды, примеры.
 
 ## Профили коррекции
 - `profiles/gravitel.yaml` — профиль Гравител (собственные записи); паттерны бренда, термины, llm_context.
