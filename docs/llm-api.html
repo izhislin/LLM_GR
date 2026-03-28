@@ -2,158 +2,329 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>LLM API — инструкция</title>
+  <title>LLM API — Gravitel AI Lab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='100 150 600 500' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M535.311 486.256C633.081 446.483 690.649 398.003 680.938 361.431C671.803 327.025 605.007 312.865 509.417 322.64L494.383 325.183C493.909 323.881 493.422 322.554 492.922 321.199L467.512 261.338C453.403 227.07 416.188 208.521 380.589 218.014L308.774 237.165C307.543 237.493 306.239 236.947 305.601 235.835C303.018 231.325 300.607 226.953 298.234 222.651C289.521 206.854 281.325 191.991 266.994 174.616C258.757 164.627 243.181 168.645 240.515 181.288C235.928 203.029 236.246 214.945 236.823 236.544C236.976 242.298 237.148 248.74 237.25 256.238C241.994 310.07 246.492 346.62 253.191 390.549L242.895 395.237C163.186 432.382 114.347 475.599 122.985 508.131C132.47 543.849 208.593 556.709 309.725 544.738C364.23 539.893 438.182 519.838 480.694 505.329C483.779 504.276 485.827 507.96 483.119 509.769C443.343 536.34 377.026 559.966 317.486 566.469L318.697 570.968C331.251 607.668 369.951 628.46 407.213 618.523L483.718 598.122C522.774 587.707 547.187 547.008 539.519 507.431L535.311 486.256ZM303.713 331.862L312.029 373.87C315.297 390.373 316.931 398.627 321.411 404.13C325.348 408.967 330.758 412.373 336.803 413.82C343.682 415.466 351.773 413.335 367.954 409.073L411.098 397.71C427.431 393.407 435.598 391.256 440.776 386.391C445.326 382.116 448.326 376.439 449.305 370.25C450.419 363.207 447.628 355.184 442.046 339.139L428.073 298.975C423.24 285.083 420.823 278.136 416.313 273.561C412.34 269.531 407.263 266.782 401.735 265.667C395.457 264.401 388.37 266.2 374.195 269.8L336.708 279.32C322.168 283.013 314.898 284.859 309.938 289.086C305.573 292.807 302.449 297.782 300.983 303.346C299.319 309.668 300.783 317.066 303.713 331.862Z' fill='%234F46E5'/%3E%3C/svg%3E" />
   <style>
     :root {
-      color-scheme: light dark;
-      --bg: #020617;
-      --fg: #e5e7eb;
-      --muted: #9ca3af;
-      --accent: #38bdf8;
-      --border: #1f2937;
+      --primary: #4F46E5;
+      --primary-hover: #4338ca;
+      --primary-light: #818cf8;
+      --primary-50: #eef2ff;
+      --primary-100: #e0e7ff;
+      --primary-200: #c7d2fe;
+      --primary-800: #3730a3;
+      --primary-900: #312e81;
+      --accent: #d946ef;
+      --accent-hover: #c026d3;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --bg-code: #1e1b4b;
+      --border: #e5e7eb;
+      --border-light: #f3f4f6;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; }
     body {
-      margin: 0;
-      font-family: system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
-      background: radial-gradient(circle at top, #0b1120, #020617 55%, #000 100%);
-      color: var(--fg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
     }
-    .page { min-height: 100vh; display: flex; justify-content: center; padding: 32px 16px; }
-    .card {
-      width: 100%; max-width: 1120px;
-      background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(129,140,248,0.02)),
-        radial-gradient(circle at top left, rgba(96,165,250,0.08), transparent), #020617;
-      border-radius: 24px;
-      border: 1px solid rgba(148,163,184,0.16);
-      box-shadow: 0 30px 80px rgba(15,23,42,0.9), 0 0 0 1px rgba(15,23,42,0.6);
-      padding: 28px 24px 32px;
-      position: relative; overflow: hidden;
-    }
-    @media (min-width: 768px) { .card { padding: 32px 40px 40px; } }
-    .card-inner { position: relative; z-index: 1; }
-    header { margin-bottom: 20px; }
-    h1.doc-title { margin: 0 0 8px; font-size: clamp(1.6rem, 1.2rem + 1vw, 1.9rem); letter-spacing: .02em; }
-    .doc-meta { font-size: .82rem; color: var(--muted); }
-    #content {
-      font-size: .9rem;
-      line-height: 1.55;
-    }
-    #content h2 { font-size: 1.25rem; margin: 1.4em 0 .5em; border-bottom: 1px solid rgba(51,65,85,0.9); padding-bottom: .3em; }
-    #content h3 { font-size: 1.05rem; margin: 1em 0 .4em; }
-    #content p { margin: .4em 0 .7em; color: var(--muted); }
-    #content ul, #content ol { margin: .4em 0 .7em; padding-left: 1.4em; color: var(--muted); }
-    #content li { margin: .2em 0; }
-    #content code {
-      font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
-      font-size: .82em;
-      background: rgba(15,23,42,0.95);
-      padding: 2px 6px;
-      border-radius: 6px;
-      border: 1px solid rgba(31,41,55,0.9);
-      color: #e5e7eb;
-    }
-    #content pre {
-      background: rgba(15,23,42,0.95);
-      padding: 14px 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(31,41,55,0.9);
-      overflow-x: auto;
-      font-size: .8rem;
-      line-height: 1.5;
-      color: #e5e7eb;
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary-900) 0%, var(--primary) 50%, var(--primary-light) 100%);
+      color: white;
+      padding: 32px 24px 40px;
       position: relative;
+      overflow: hidden;
     }
-    #content pre code { background: none; padding: 0; border: none; }
-    #content table {
+    .header::after {
+      content: '';
+      position: absolute;
+      top: -40%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(217,70,239,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .logo-icon { width: 36px; height: 36px; }
+    .logo-text { font-size: .85rem; opacity: .8; letter-spacing: .06em; }
+    .header h1 {
+      font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.2rem);
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -.01em;
+    }
+    .header .subtitle {
+      font-size: .95rem;
+      opacity: .85;
+    }
+
+    /* Nav */
+    .toc {
+      max-width: 960px;
+      margin: -20px auto 0;
+      padding: 0 24px;
+      position: relative;
+      z-index: 2;
+    }
+    .toc-inner {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 16px;
+    }
+    .toc a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: .82rem;
+      font-weight: 500;
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+      transition: border-color .15s;
+    }
+    .toc a:hover { border-color: var(--primary-light); }
+
+    /* Content */
+    .content {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+    .section {
+      background: var(--bg-primary);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 28px 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    @media (min-width: 768px) { .section { padding: 32px 36px; } }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary-900);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .num {
+      background: var(--primary);
+      color: white;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    h3 {
+      font-size: 1.02rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 1.2em 0 .5em;
+    }
+    p { color: var(--text-secondary); margin: .4em 0 .8em; font-size: .9rem; }
+    ul, ol { margin: .4em 0 .8em; padding-left: 1.4em; color: var(--text-secondary); font-size: .9rem; }
+    li { margin: .25em 0; }
+    strong { color: var(--text-primary); }
+
+    /* Table */
+    table {
       width: 100%;
       border-collapse: collapse;
       margin: .6em 0;
       font-size: .85rem;
-      border-radius: 12px;
+      border-radius: 10px;
       overflow: hidden;
-      border: 1px solid rgba(30,41,59,0.9);
+      border: 1px solid var(--border);
     }
-    #content th, #content td {
-      border: 1px solid rgba(30,41,59,0.9);
-      padding: 8px 12px;
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
       text-align: left;
-      color: var(--muted);
     }
-    #content th { background: rgba(30,64,175,0.6); color: #e5e7eb; font-weight: 500; }
-    #content tr:nth-child(even) { background: rgba(15,23,42,0.6); }
-    #content hr { border: none; border-top: 1px solid rgba(51,65,85,0.9); margin: 1.2em 0; }
-    #content blockquote {
+    th {
+      background: var(--primary);
+      color: white;
+      font-weight: 500;
+      font-size: .82rem;
+      letter-spacing: .02em;
+    }
+    td { color: var(--text-secondary); }
+    tr:nth-child(even) { background: var(--bg-secondary); }
+    td code {
+      background: var(--primary-50);
+      color: var(--primary-800);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: .82em;
+    }
+
+    /* Code */
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .82em;
+      background: var(--primary-50);
+      color: var(--primary-800);
+      padding: 2px 7px;
+      border-radius: 6px;
+      border: 1px solid var(--primary-100);
+    }
+    pre {
+      background: var(--bg-code);
+      padding: 16px 18px;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-size: .8rem;
+      line-height: 1.55;
+      color: #e0e7ff;
+      position: relative;
       margin: .6em 0;
-      padding: 8px 12px 8px 16px;
-      border-left: 4px solid rgba(56,189,248,0.5);
-      background: rgba(15,23,42,0.7);
-      border-radius: 0 10px 10px 0;
-      color: var(--muted);
     }
-    #content .note {
-      background: rgba(56,189,248,0.08);
-      border: 1px solid rgba(56,189,248,0.25);
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin: .8em 0;
-      font-size: .85rem;
+    pre code {
+      background: none;
+      padding: 0;
+      border: none;
+      color: inherit;
     }
-    #content .note strong { color: var(--accent); }
-    #content .warn {
-      background: rgba(251,191,36,0.08);
-      border: 1px solid rgba(251,191,36,0.25);
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin: .8em 0;
-      font-size: .85rem;
+    .lang-tag {
+      position: absolute;
+      top: 8px; left: 14px;
+      font-size: .6rem;
+      color: #818cf8;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-weight: 600;
     }
-    #content .warn strong { color: #fbbf24; }
     .copy-btn {
-      position: absolute; top: 8px; right: 8px;
-      background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3);
-      color: var(--accent); border-radius: 6px; padding: 4px 10px;
-      font-size: .72rem; cursor: pointer; opacity: 0; transition: opacity .2s;
+      position: absolute;
+      top: 8px; right: 8px;
+      background: rgba(129,140,248,0.2);
+      border: 1px solid rgba(129,140,248,0.35);
+      color: #c7d2fe;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .7rem;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity .2s;
+      font-family: inherit;
     }
     pre:hover .copy-btn { opacity: 1; }
-    .copy-btn:hover { background: rgba(56,189,248,0.3); }
-    .lang-tag {
-      position: absolute; top: 8px; left: 12px;
-      font-size: .65rem; color: #6b7280; text-transform: uppercase; letter-spacing: .08em;
+    .copy-btn:hover { background: rgba(129,140,248,0.35); }
+
+    /* Callouts */
+    .note {
+      background: var(--primary-50);
+      border: 1px solid var(--primary-200);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 10px 10px 0;
+      padding: 12px 16px;
+      margin: .8em 0;
+      font-size: .85rem;
+      color: var(--text-secondary);
     }
-    footer {
-      margin-top: 24px;
-      padding-top: 12px;
-      border-top: 1px dashed rgba(30,64,175,0.55);
-      font-size: .78rem;
-      color: var(--muted);
+    .note strong { color: var(--primary); }
+    .warn {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      border-radius: 0 10px 10px 0;
+      padding: 12px 16px;
+      margin: .8em 0;
+      font-size: .85rem;
+      color: var(--text-secondary);
+    }
+    .warn strong { color: #b45309; }
+
+    /* Footer */
+    .footer {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 48px;
       display: flex;
       justify-content: space-between;
-      gap: 8px;
+      align-items: center;
       flex-wrap: wrap;
+      gap: 8px;
     }
-    .tagline { text-transform: uppercase; letter-spacing: .16em; font-size: .62rem; color: #6b7280; }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .footer-brand svg { width: 20px; height: 20px; }
+    .footer-text {
+      font-size: .75rem;
+      color: var(--text-muted);
+      letter-spacing: .04em;
+    }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="card">
-      <div class="card-inner">
-        <header>
-          <h1 class="doc-title">LLM API — инструкция</h1>
-          <div class="doc-meta">OpenAI-compatible API поверх Ollama (Qwen3-8B) &middot; 2026-03-28</div>
-        </header>
-        <main id="content">
 
-<h2>1. API-ключ (токен)</h2>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo-row">
+        <svg class="logo-icon" viewBox="100 150 600 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M535.311 486.256C633.081 446.483 690.649 398.003 680.938 361.431C671.803 327.025 605.007 312.865 509.417 322.64L494.383 325.183C493.909 323.881 493.422 322.554 492.922 321.199L467.512 261.338C453.403 227.07 416.188 208.521 380.589 218.014L308.774 237.165C307.543 237.493 306.239 236.947 305.601 235.835C303.018 231.325 300.607 226.953 298.234 222.651C289.521 206.854 281.325 191.991 266.994 174.616C258.757 164.627 243.181 168.645 240.515 181.288C235.928 203.029 236.246 214.945 236.823 236.544C236.976 242.298 237.148 248.74 237.25 256.238C241.994 310.07 246.492 346.62 253.191 390.549L242.895 395.237C163.186 432.382 114.347 475.599 122.985 508.131C132.47 543.849 208.593 556.709 309.725 544.738C364.23 539.893 438.182 519.838 480.694 505.329C483.779 504.276 485.827 507.96 483.119 509.769C443.343 536.34 377.026 559.966 317.486 566.469L318.697 570.968C331.251 607.668 369.951 628.46 407.213 618.523L483.718 598.122C522.774 587.707 547.187 547.008 539.519 507.431L535.311 486.256ZM303.713 331.862L312.029 373.87C315.297 390.373 316.931 398.627 321.411 404.13C325.348 408.967 330.758 412.373 336.803 413.82C343.682 415.466 351.773 413.335 367.954 409.073L411.098 397.71C427.431 393.407 435.598 391.256 440.776 386.391C445.326 382.116 448.326 376.439 449.305 370.25C450.419 363.207 447.628 355.184 442.046 339.139L428.073 298.975C423.24 285.083 420.823 278.136 416.313 273.561C412.34 269.531 407.263 266.782 401.735 265.667C395.457 264.401 388.37 266.2 374.195 269.8L336.708 279.32C322.168 283.013 314.898 284.859 309.938 289.086C305.573 292.807 302.449 297.782 300.983 303.346C299.319 309.668 300.783 317.066 303.713 331.862Z" fill="white"/>
+        </svg>
+        <span class="logo-text">Gravitel AI Lab</span>
+      </div>
+      <h1>LLM API</h1>
+      <div class="subtitle">OpenAI-compatible API поверх Ollama (Qwen3-8B)</div>
+    </div>
+  </div>
 
-<p><strong>Где хранится:</strong> файл <code>.env</code> на сервере <code>~/01_LLM_GR/.env</code>, переменная <code>LLM_API_KEY</code>.</p>
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc-inner">
+      <a href="#token">API-ключ</a>
+      <a href="#connection">Подключение</a>
+      <a href="#commands">Команды</a>
+      <a href="#params">Параметры</a>
+      <a href="#response">Формат ответа</a>
+      <a href="#check">Быстрая проверка</a>
+      <a href="#python">Python SDK</a>
+      <a href="#notes">Примечания</a>
+    </div>
+  </nav>
 
-<p><strong>Как сгенерировать новый:</strong></p>
+  <!-- Content -->
+  <div class="content">
 
-<pre><code><span class="lang-tag">bash</span>ssh ai-lab
+    <!-- 1. API-ключ -->
+    <div class="section" id="token">
+      <h2><span class="num">1</span> API-ключ (токен)</h2>
+      <p><strong>Где хранится:</strong> файл <code>.env</code> на сервере <code>~/01_LLM_GR/.env</code>, переменная <code>LLM_API_KEY</code>.</p>
+      <h3>Как сгенерировать новый</h3>
+      <pre><code><span class="lang-tag">bash</span>ssh ai-lab
 cd ~/01_LLM_GR
 
 # Сгенерировать новый ключ
@@ -164,29 +335,32 @@ nano .env   # строка LLM_API_KEY=&lt;новый_ключ&gt;
 
 # Перезапустить сервис
 systemctl --user restart ai-lab-web</code></pre>
+      <div class="note"><strong>Примечание:</strong> Если <code>LLM_API_KEY</code> не задан или пустой — авторизация отключена, API открыт всем.</div>
+    </div>
 
-<div class="note"><strong>Примечание:</strong> Если <code>LLM_API_KEY</code> не задан или пустой — авторизация отключена, API открыт всем.</div>
+    <!-- 2. Подключение -->
+    <div class="section" id="connection">
+      <h2><span class="num">2</span> Подключение</h2>
+      <table>
+        <tr><th>Параметр</th><th>Значение</th></tr>
+        <tr><td><strong>Base URL</strong></td><td><code>http://212.24.45.138:42367/v1</code></td></tr>
+        <tr><td><strong>Auth</strong></td><td><code>Authorization: Bearer &lt;LLM_API_KEY&gt;</code></td></tr>
+        <tr><td><strong>Модель</strong></td><td><code>qwen3:8b</code></td></tr>
+        <tr><td><strong>Формат</strong></td><td>OpenAI Chat API</td></tr>
+      </table>
+      <p>Для OpenAI SDK (Python / JS / Go) — указать только <code>base_url</code> и <code>api_key</code>, всё остальное стандартное.</p>
+    </div>
 
-<h2>2. Подключение</h2>
+    <!-- 3. Основные команды -->
+    <div class="section" id="commands">
+      <h2><span class="num">3</span> Основные команды</h2>
 
-<table>
-  <tr><th>Параметр</th><th>Значение</th></tr>
-  <tr><td><strong>Base URL</strong></td><td><code>http://212.24.45.138:42367/v1</code></td></tr>
-  <tr><td><strong>Auth</strong></td><td><code>Authorization: Bearer &lt;LLM_API_KEY&gt;</code></td></tr>
-  <tr><td><strong>Модель</strong></td><td><code>qwen3:8b</code></td></tr>
-  <tr><td><strong>Формат</strong></td><td>OpenAI Chat API</td></tr>
-</table>
-
-<p>Для OpenAI SDK (Python/JS/Go) — указать только <code>base_url</code> и <code>api_key</code>, всё остальное стандартное.</p>
-
-<h2>3. Основные команды</h2>
-
-<h3>Список моделей</h3>
-<pre><code><span class="lang-tag">bash</span>curl -H "Authorization: Bearer $KEY" \
+      <h3>Список моделей</h3>
+      <pre><code><span class="lang-tag">bash</span>curl -H "Authorization: Bearer $KEY" \
   http://212.24.45.138:42367/v1/models</code></pre>
 
-<h3>Запрос (синхронный)</h3>
-<pre><code><span class="lang-tag">bash</span>curl http://212.24.45.138:42367/v1/chat/completions \
+      <h3>Запрос (синхронный)</h3>
+      <pre><code><span class="lang-tag">bash</span>curl http://212.24.45.138:42367/v1/chat/completions \
   -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -199,8 +373,8 @@ systemctl --user restart ai-lab-web</code></pre>
     "max_tokens": 500
   }'</code></pre>
 
-<h3>Запрос (стриминг)</h3>
-<pre><code><span class="lang-tag">bash</span>curl http://212.24.45.138:42367/v1/chat/completions \
+      <h3>Запрос (стриминг)</h3>
+      <pre><code><span class="lang-tag">bash</span>curl http://212.24.45.138:42367/v1/chat/completions \
   -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -208,26 +382,30 @@ systemctl --user restart ai-lab-web</code></pre>
     "messages": [{"role": "user", "content": "Привет!"}],
     "stream": true
   }'</code></pre>
-<p>Ответ приходит чанками в формате SSE (<code>data: {...}</code>), завершается <code>data: [DONE]</code>.</p>
+      <p>Ответ приходит чанками в формате SSE (<code>data: {...}</code>), завершается <code>data: [DONE]</code>.</p>
+    </div>
 
-<h2>4. Параметры запроса</h2>
+    <!-- 4. Параметры -->
+    <div class="section" id="params">
+      <h2><span class="num">4</span> Параметры запроса</h2>
+      <table>
+        <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+        <tr><td><code>model</code></td><td>string</td><td>Название модели (<code>qwen3:8b</code>)</td></tr>
+        <tr><td><code>messages</code></td><td>array</td><td>Массив <code>{role, content}</code>. Роли: <code>system</code>, <code>user</code>, <code>assistant</code></td></tr>
+        <tr><td><code>stream</code></td><td>bool</td><td><code>true</code> — SSE-поток, <code>false</code> — один JSON</td></tr>
+        <tr><td><code>temperature</code></td><td>float</td><td>Креативность, 0.0–1.0 (default: модельный)</td></tr>
+        <tr><td><code>top_p</code></td><td>float</td><td>Nucleus sampling, 0.0–1.0</td></tr>
+        <tr><td><code>max_tokens</code></td><td>int</td><td>Лимит токенов ответа (<strong>минимум 200</strong>)</td></tr>
+      </table>
+      <div class="warn"><strong>Важно:</strong> Qwen3 тратит ~100–150 токенов на скрытый <code>&lt;think&gt;</code> блок перед ответом. При <code>max_tokens &lt; 200</code> ответ может быть пустым — весь бюджет уходит на размышления модели.</div>
+    </div>
 
-<table>
-  <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-  <tr><td><code>model</code></td><td>string</td><td>Название модели (<code>qwen3:8b</code>)</td></tr>
-  <tr><td><code>messages</code></td><td>array</td><td>Массив <code>{role, content}</code>. Роли: <code>system</code>, <code>user</code>, <code>assistant</code></td></tr>
-  <tr><td><code>stream</code></td><td>bool</td><td><code>true</code> — SSE-поток, <code>false</code> — один JSON</td></tr>
-  <tr><td><code>temperature</code></td><td>float</td><td>Креативность, 0.0–1.0 (default: модельный)</td></tr>
-  <tr><td><code>top_p</code></td><td>float</td><td>Nucleus sampling, 0.0–1.0</td></tr>
-  <tr><td><code>max_tokens</code></td><td>int</td><td>Лимит токенов ответа (<strong>минимум 200</strong>)</td></tr>
-</table>
+    <!-- 5. Формат ответа -->
+    <div class="section" id="response">
+      <h2><span class="num">5</span> Формат ответа</h2>
 
-<div class="warn"><strong>Важно:</strong> Qwen3 тратит ~100-150 токенов на скрытый <code>&lt;think&gt;</code> блок перед ответом. При <code>max_tokens &lt; 200</code> ответ может быть пустым — весь бюджет уходит на размышления модели.</div>
-
-<h2>5. Формат ответа</h2>
-
-<h3>Синхронный (<code>stream: false</code>)</h3>
-<pre><code><span class="lang-tag">json</span>{
+      <h3>Синхронный (<code>stream: false</code>)</h3>
+      <pre><code><span class="lang-tag">json</span>{
   "id": "chatcmpl-...",
   "object": "chat.completion",
   "model": "qwen3:8b",
@@ -242,14 +420,17 @@ systemctl --user restart ai-lab-web</code></pre>
   }
 }</code></pre>
 
-<h3>Стриминг (<code>stream: true</code>)</h3>
-<pre><code><span class="lang-tag">sse</span>data: {"id":"chatcmpl-...","object":"chat.completion.chunk","choices":[{"delta":{"content":"токен"},"finish_reason":null}]}
+      <h3>Стриминг (<code>stream: true</code>)</h3>
+      <pre><code><span class="lang-tag">sse</span>data: {"id":"chatcmpl-...","object":"chat.completion.chunk",
+       "choices":[{"delta":{"content":"токен"},"finish_reason":null}]}
 
 data: [DONE]</code></pre>
+    </div>
 
-<h2>6. Быстрая проверка</h2>
-
-<pre><code><span class="lang-tag">bash</span># Задать ключ
+    <!-- 6. Быстрая проверка -->
+    <div class="section" id="check">
+      <h2><span class="num">6</span> Быстрая проверка</h2>
+      <pre><code><span class="lang-tag">bash</span># Задать ключ
 export KEY="&lt;ваш LLM_API_KEY&gt;"
 
 # Проверить доступность
@@ -262,19 +443,21 @@ curl -s http://212.24.45.138:42367/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"qwen3:8b","messages":[{"role":"user","content":"Скажи привет"}],"stream":false,"max_tokens":200}' \
   | python3 -m json.tool</code></pre>
+    </div>
 
-<h2>7. Примеры на Python (OpenAI SDK)</h2>
+    <!-- 7. Python SDK -->
+    <div class="section" id="python">
+      <h2><span class="num">7</span> Примеры на Python (OpenAI SDK)</h2>
+      <pre><code><span class="lang-tag">bash</span>pip install openai</code></pre>
 
-<pre><code><span class="lang-tag">bash</span>pip install openai</code></pre>
-
-<pre><code><span class="lang-tag">python</span>from openai import OpenAI
+      <h3>Простой запрос</h3>
+      <pre><code><span class="lang-tag">python</span>from openai import OpenAI
 
 client = OpenAI(
     base_url="http://212.24.45.138:42367/v1",
     api_key="&lt;ваш LLM_API_KEY&gt;"
 )
 
-# Простой запрос
 response = client.chat.completions.create(
     model="qwen3:8b",
     messages=[
@@ -284,8 +467,8 @@ response = client.chat.completions.create(
 )
 print(response.choices[0].message.content)</code></pre>
 
-<pre><code><span class="lang-tag">python</span># Стриминг
-stream = client.chat.completions.create(
+      <h3>Стриминг</h3>
+      <pre><code><span class="lang-tag">python</span>stream = client.chat.completions.create(
     model="qwen3:8b",
     messages=[{"role": "user", "content": "Объясни кратко что такое SIP"}],
     stream=True
@@ -294,26 +477,34 @@ for chunk in stream:
     content = chunk.choices[0].delta.content
     if content:
         print(content, end="", flush=True)</code></pre>
-
-<h2>8. Примечания</h2>
-
-<ul>
-  <li><strong>Многоходовый диалог:</strong> Добавляйте предыдущие ответы в <code>messages</code> с <code>role: "assistant"</code> — модель видит всю историю.</li>
-  <li><strong>System prompt:</strong> Задаёт поведение модели на весь диалог. Полезно для специализации: «Ты эксперт по телефонии».</li>
-  <li><strong>Совместимость:</strong> API работает с LangChain, LlamaIndex, AutoGen и любыми фреймворками, поддерживающими OpenAI формат.</li>
-  <li><strong>Реализация:</strong> <code>src/web/routes/openai_compat.py</code> — прокси к Ollama.</li>
-</ul>
-
-        </main>
-        <footer>
-          <div class="tagline">Gravitel AI &middot; Docs</div>
-          <div>Источник: <code>agent_docs/guides/llm-api.md</code></div>
-        </footer>
-      </div>
     </div>
+
+    <!-- 8. Примечания -->
+    <div class="section" id="notes">
+      <h2><span class="num">8</span> Примечания</h2>
+      <ul>
+        <li><strong>Многоходовый диалог:</strong> Добавляйте предыдущие ответы в <code>messages</code> с <code>role: "assistant"</code> — модель видит всю историю.</li>
+        <li><strong>System prompt:</strong> Задаёт поведение модели на весь диалог. Полезно для специализации.</li>
+        <li><strong>Совместимость:</strong> API работает с LangChain, LlamaIndex, AutoGen и любыми фреймворками, поддерживающими OpenAI формат.</li>
+        <li><strong>Реализация:</strong> <code>src/web/routes/openai_compat.py</code> — прокси к Ollama.</li>
+      </ul>
+    </div>
+
   </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-brand">
+      <svg viewBox="100 150 600 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M535.311 486.256C633.081 446.483 690.649 398.003 680.938 361.431C671.803 327.025 605.007 312.865 509.417 322.64L494.383 325.183C493.909 323.881 493.422 322.554 492.922 321.199L467.512 261.338C453.403 227.07 416.188 208.521 380.589 218.014L308.774 237.165C307.543 237.493 306.239 236.947 305.601 235.835C303.018 231.325 300.607 226.953 298.234 222.651C289.521 206.854 281.325 191.991 266.994 174.616C258.757 164.627 243.181 168.645 240.515 181.288C235.928 203.029 236.246 214.945 236.823 236.544C236.976 242.298 237.148 248.74 237.25 256.238C241.994 310.07 246.492 346.62 253.191 390.549L242.895 395.237C163.186 432.382 114.347 475.599 122.985 508.131C132.47 543.849 208.593 556.709 309.725 544.738C364.23 539.893 438.182 519.838 480.694 505.329C483.779 504.276 485.827 507.96 483.119 509.769C443.343 536.34 377.026 559.966 317.486 566.469L318.697 570.968C331.251 607.668 369.951 628.46 407.213 618.523L483.718 598.122C522.774 587.707 547.187 547.008 539.519 507.431L535.311 486.256ZM303.713 331.862L312.029 373.87C315.297 390.373 316.931 398.627 321.411 404.13C325.348 408.967 330.758 412.373 336.803 413.82C343.682 415.466 351.773 413.335 367.954 409.073L411.098 397.71C427.431 393.407 435.598 391.256 440.776 386.391C445.326 382.116 448.326 376.439 449.305 370.25C450.419 363.207 447.628 355.184 442.046 339.139L428.073 298.975C423.24 285.083 420.823 278.136 416.313 273.561C412.34 269.531 407.263 266.782 401.735 265.667C395.457 264.401 388.37 266.2 374.195 269.8L336.708 279.32C322.168 283.013 314.898 284.859 309.938 289.086C305.573 292.807 302.449 297.782 300.983 303.346C299.319 309.668 300.783 317.066 303.713 331.862Z" fill="#4F46E5"/>
+      </svg>
+      <span class="footer-text">Gravitel AI Lab</span>
+    </div>
+    <span class="footer-text">Источник: agent_docs/guides/llm-api.md</span>
+  </div>
+
   <script>
-    document.querySelectorAll('#content pre').forEach(pre => {
+    document.querySelectorAll('pre').forEach(pre => {
       const btn = document.createElement('button');
       btn.className = 'copy-btn';
       btn.textContent = 'Copy';
@@ -325,7 +516,6 @@ for chunk in stream:
           setTimeout(() => btn.textContent = 'Copy', 1500);
         });
       };
-      pre.style.position = 'relative';
       pre.appendChild(btn);
     });
   </script>
