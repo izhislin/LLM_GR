@@ -13,6 +13,10 @@ services:
       - ./config/open-webui-custom.css:/app/backend/open_webui/static/custom.css:ro
       - ./config/open-webui-assets/favicon.svg:/app/backend/open_webui/static/favicon.svg:ro
       - ./config/open-webui-assets/favicon.svg:/app/build/static/favicon.svg:ro
+      - ./config/open-webui-assets/favicon.png:/app/backend/open_webui/static/favicon.png:ro
+      - ./config/open-webui-assets/favicon.png:/app/build/static/favicon.png:ro
+      - ./config/open-webui-assets/favicon-96x96.png:/app/backend/open_webui/static/favicon-96x96.png:ro
+      - ./config/open-webui-assets/favicon-96x96.png:/app/build/static/favicon-96x96.png:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
