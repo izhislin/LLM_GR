@@ -71,7 +71,7 @@ EOF
 | nvidia_gpu_exporter | `9835` | `nvidia_gpu_exporter` | Установлен (v1.4.1, .deb), active |
 | pipeline metrics | `8000` | — (поднимается пайплайном) | При запуске `python -m src.pipeline` |
 | Ollama metrics | `11434` | — | Не поддерживается в v0.17.7, порт зарезервирован |
-| Open WebUI | `8090` | Docker container `open-webui` | `docker compose up -d` из `~/01_LLM_GR` |
+| Open WebUI | `8091` | Docker container `open-webui` | `docker compose up -d` из `~/01_LLM_GR` |
 
 ### Маппинг портов MikroTik → сервер
 
@@ -82,7 +82,8 @@ EOF
 | `42365` | → `8000` | pipeline metrics |
 | `42366` | → `11434` | Ollama metrics (зарезервирован) |
 | `42367` | → `8080` | AI Lab Web (FastAPI) |
-| `42368` | → `8090` | Open WebUI |
+| `42368` | → `8090` | TTS API (venv_tts, модель 1.7B) |
+| `42371` | → `8091` | Open WebUI |
 
 ### Prometheus scrape config
 
