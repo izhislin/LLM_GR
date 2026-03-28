@@ -9,6 +9,13 @@
 
 ## Записи
 
+### 2026-03-28 — OpenAI-compatible API + Open WebUI
+
+- **OpenAI API прокси:** Новый роутер `src/web/routes/openai_compat.py` — реализация `POST /v1/chat/completions` и `GET /v1/models` в формате OpenAI Chat API. Проксирует запросы к Ollama. Поддерживает stream/sync режимы, параметры temperature/top_p/max_tokens.
+- **Авторизация:** Bearer-токен через `LLM_API_KEY` в `.env` (timing-safe сравнение). Если ключ не задан — авторизация отключена. Маршруты `/v1/` исключены из Basic Auth middleware (своя авторизация по Bearer).
+- **Open WebUI:** Добавлен `docker-compose.yml` для запуска Open WebUI на порту 3000, подключённого к Ollama.
+- **Тесты:** 162 passed (+8 новых: auth, models, sync/stream completions, options passthrough, validation).
+
 ### 2026-03-26 — Исправление webhook: суффикс /event в URL
 
 - **Проблема:** Гравител АТС добавляет суффикс `/event` или `/history` к webhook URL. Роут принимал только `/webhook/{domain}/history` → все входящие webhook-и получали 404.

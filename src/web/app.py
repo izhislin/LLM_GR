@@ -23,7 +23,7 @@ from src.metrics import start_metrics_server
 from src.domain_config import load_domains_config
 from src.gravitel_api import GravitelClient
 from src.worker import CallWorker
-from src.web.routes import webhook, api
+from src.web.routes import webhook, api, openai_compat
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -228,7 +228,7 @@ async def lifespan(app: FastAPI):
 
 # ── Basic Auth Middleware ─────────────────────────────────────────────────────
 
-_OPEN_PREFIXES = ("/webhook/", "/metrics")
+_OPEN_PREFIXES = ("/webhook/", "/metrics", "/v1/")
 
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
@@ -275,6 +275,7 @@ app = FastAPI(title="AI Lab — Анализ звонков", lifespan=lifespan)
 app.add_middleware(BasicAuthMiddleware)
 app.include_router(webhook.router)
 app.include_router(api.router)
+app.include_router(openai_compat.router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
