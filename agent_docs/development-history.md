@@ -16,6 +16,10 @@
 - **Open WebUI:** Добавлен `docker-compose.yml` для запуска Open WebUI (Docker) на порту 8091, подключён к Ollama. Внешний доступ через MikroTik `42371→8091`. Регистрация отключена (`ENABLE_SIGNUP=false`), пользователи создаются через Admin Panel.
 - **Деплой:** Код на сервере, сервис перезапущен, Open WebUI запущен в Docker. API-ключ `LLM_API_KEY` сгенерирован на сервере.
 - **Порты на сервере:** 8080 (FastAPI/AI Lab Web), 8090 (TTS API), 8091 (Open WebUI Docker).
+- **Брендинг Open WebUI:** Favicon Gravitel (SVG + PNG 500x500 + 96x96) смонтирован через Docker volumes. Название задано через `WEBUI_NAME=Gravitel AI`. Custom CSS подключён через `custom.css` mount (пока пустой, готов к использованию).
+- **Документация:** `agent_docs/guides/llm-api.md` — инструкция по API (токен, подключение, команды, примеры). HTML-версия: `docs/llm-api.html` в корпоративном стиле Gravitel.
+- **Skill:** Глобальный skill `gravitel-branded-docs` (`~/.claude/skills/`) — генерация HTML-документации в корпоративном стиле. Slash-команда `/gravitel-doc`.
+- **Конфигурация Open WebUI:** `config/open-webui-custom.css`, `config/open-webui-assets/` (favicon.svg, favicon.png, favicon-96x96.png).
 - **Тесты:** 162 passed (+8 новых: auth, models, sync/stream completions, options passthrough, validation).
 
 ### 2026-03-26 — Исправление webhook: суффикс /event в URL

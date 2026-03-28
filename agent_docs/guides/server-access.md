@@ -58,8 +58,8 @@ EOF
 | CUDA | 13.1 (driver) / 12.8 (PyTorch runtime) | |
 | node_exporter | 1.7.0 | apt, systemd: `prometheus-node-exporter` |
 | nvidia_gpu_exporter | 1.4.1 | .deb, systemd: `nvidia_gpu_exporter` |
-| Docker | — | Для Open WebUI |
-| Open WebUI | latest | Docker, порт 3080 |
+| Docker | 28.2.2 | apt, `docker compose` v2 |
+| Open WebUI | 0.8.12 | Docker, порт 8091, `WEBUI_NAME=Gravitel AI` |
 
 ## Мониторинг (Prometheus)
 
