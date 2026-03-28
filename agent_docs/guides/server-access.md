@@ -58,6 +58,8 @@ EOF
 | CUDA | 13.1 (driver) / 12.8 (PyTorch runtime) | |
 | node_exporter | 1.7.0 | apt, systemd: `prometheus-node-exporter` |
 | nvidia_gpu_exporter | 1.4.1 | .deb, systemd: `nvidia_gpu_exporter` |
+| Docker | — | Для Open WebUI |
+| Open WebUI | latest | Docker, порт 3080 |
 
 ## Мониторинг (Prometheus)
 
@@ -69,6 +71,7 @@ EOF
 | nvidia_gpu_exporter | `9835` | `nvidia_gpu_exporter` | Установлен (v1.4.1, .deb), active |
 | pipeline metrics | `8000` | — (поднимается пайплайном) | При запуске `python -m src.pipeline` |
 | Ollama metrics | `11434` | — | Не поддерживается в v0.17.7, порт зарезервирован |
+| Open WebUI | `3080` | Docker container `open-webui` | `docker compose up -d` из `~/01_LLM_GR` |
 
 ### Маппинг портов MikroTik → сервер
 
@@ -78,6 +81,8 @@ EOF
 | `42364` | → `9835` | nvidia_gpu_exporter |
 | `42365` | → `8000` | pipeline metrics |
 | `42366` | → `11434` | Ollama metrics (зарезервирован) |
+| `42367` | → `8080` | AI Lab Web (FastAPI) |
+| `42368` | → `3080` | Open WebUI |
 
 ### Prometheus scrape config
 
@@ -96,6 +101,20 @@ scrape_configs:
     static_configs:
       - targets: ['212.24.45.138:42365']
 ```
+
+## OpenAI-compatible API
+
+Прокси-слой поверх Ollama в формате OpenAI Chat API. Живёт в основном FastAPI-приложении.
+
+| Параметр | Значение |
+|---|---|
+| Внутренний URL | `http://localhost:8080/v1/chat/completions` |
+| Внешний URL | `http://212.24.45.138:42367/v1/chat/completions` |
+| Auth | `Authorization: Bearer <LLM_API_KEY>` |
+| Модель | `qwen3:8b` |
+| Endpoints | `GET /v1/models`, `POST /v1/chat/completions` |
+
+`LLM_API_KEY` задан в `~/01_LLM_GR/.env`. Поддерживает stream/sync, параметры `temperature`, `top_p`, `max_tokens`.
 
 ## Примечания
 
