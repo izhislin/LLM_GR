@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>LLM API — инструкция</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #020617;
+      --fg: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #38bdf8;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+      background: radial-gradient(circle at top, #0b1120, #020617 55%, #000 100%);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { min-height: 100vh; display: flex; justify-content: center; padding: 32px 16px; }
+    .card {
+      width: 100%; max-width: 1120px;
+      background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(129,140,248,0.02)),
+        radial-gradient(circle at top left, rgba(96,165,250,0.08), transparent), #020617;
+      border-radius: 24px;
+      border: 1px solid rgba(148,163,184,0.16);
+      box-shadow: 0 30px 80px rgba(15,23,42,0.9), 0 0 0 1px rgba(15,23,42,0.6);
+      padding: 28px 24px 32px;
+      position: relative; overflow: hidden;
+    }
+    @media (min-width: 768px) { .card { padding: 32px 40px 40px; } }
+    .card-inner { position: relative; z-index: 1; }
+    header { margin-bottom: 20px; }
+    h1.doc-title { margin: 0 0 8px; font-size: clamp(1.6rem, 1.2rem + 1vw, 1.9rem); letter-spacing: .02em; }
+    .doc-meta { font-size: .82rem; color: var(--muted); }
+    #content {
+      font-size: .9rem;
+      line-height: 1.55;
+    }
+    #content h2 { font-size: 1.25rem; margin: 1.4em 0 .5em; border-bottom: 1px solid rgba(51,65,85,0.9); padding-bottom: .3em; }
+    #content h3 { font-size: 1.05rem; margin: 1em 0 .4em; }
+    #content p { margin: .4em 0 .7em; color: var(--muted); }
+    #content ul, #content ol { margin: .4em 0 .7em; padding-left: 1.4em; color: var(--muted); }
+    #content li { margin: .2em 0; }
+    #content code {
+      font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      font-size: .82em;
+      background: rgba(15,23,42,0.95);
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(31,41,55,0.9);
+      color: #e5e7eb;
+    }
+    #content pre {
+      background: rgba(15,23,42,0.95);
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(31,41,55,0.9);
+      overflow-x: auto;
+      font-size: .8rem;
+      line-height: 1.5;
+      color: #e5e7eb;
+      position: relative;
+    }
+    #content pre code { background: none; padding: 0; border: none; }
+    #content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: .6em 0;
+      font-size: .85rem;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(30,41,59,0.9);
+    }
+    #content th, #content td {
+      border: 1px solid rgba(30,41,59,0.9);
+      padding: 8px 12px;
+      text-align: left;
+      color: var(--muted);
+    }
+    #content th { background: rgba(30,64,175,0.6); color: #e5e7eb; font-weight: 500; }
+    #content tr:nth-child(even) { background: rgba(15,23,42,0.6); }
+    #content hr { border: none; border-top: 1px solid rgba(51,65,85,0.9); margin: 1.2em 0; }
+    #content blockquote {
+      margin: .6em 0;
+      padding: 8px 12px 8px 16px;
+      border-left: 4px solid rgba(56,189,248,0.5);
+      background: rgba(15,23,42,0.7);
+      border-radius: 0 10px 10px 0;
+      color: var(--muted);
+    }
+    #content .note {
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin: .8em 0;
+      font-size: .85rem;
+    }
+    #content .note strong { color: var(--accent); }
+    #content .warn {
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin: .8em 0;
+      font-size: .85rem;
+    }
+    #content .warn strong { color: #fbbf24; }
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3);
+      color: var(--accent); border-radius: 6px; padding: 4px 10px;
+      font-size: .72rem; cursor: pointer; opacity: 0; transition: opacity .2s;
+    }
+    pre:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { background: rgba(56,189,248,0.3); }
+    .lang-tag {
+      position: absolute; top: 8px; left: 12px;
+      font-size: .65rem; color: #6b7280; text-transform: uppercase; letter-spacing: .08em;
+    }
+    footer {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(30,64,175,0.55);
+      font-size: .78rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tagline { text-transform: uppercase; letter-spacing: .16em; font-size: .62rem; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <div class="card-inner">
+        <header>
+          <h1 class="doc-title">LLM API — инструкция</h1>
+          <div class="doc-meta">OpenAI-compatible API поверх Ollama (Qwen3-8B) &middot; 2026-03-28</div>
+        </header>
+        <main id="content">
+
+<h2>1. API-ключ (токен)</h2>
+
+<p><strong>Где хранится:</strong> файл <code>.env</code> на сервере <code>~/01_LLM_GR/.env</code>, переменная <code>LLM_API_KEY</code>.</p>
+
+<p><strong>Как сгенерировать новый:</strong></p>
+
+<pre><code><span class="lang-tag">bash</span>ssh ai-lab
+cd ~/01_LLM_GR
+
+# Сгенерировать новый ключ
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Вписать в .env
+nano .env   # строка LLM_API_KEY=&lt;новый_ключ&gt;
+
+# Перезапустить сервис
+systemctl --user restart ai-lab-web</code></pre>
+
+<div class="note"><strong>Примечание:</strong> Если <code>LLM_API_KEY</code> не задан или пустой — авторизация отключена, API открыт всем.</div>
+
+<h2>2. Подключение</h2>
+
+<table>
+  <tr><th>Параметр</th><th>Значение</th></tr>
+  <tr><td><strong>Base URL</strong></td><td><code>http://212.24.45.138:42367/v1</code></td></tr>
+  <tr><td><strong>Auth</strong></td><td><code>Authorization: Bearer &lt;LLM_API_KEY&gt;</code></td></tr>
+  <tr><td><strong>Модель</strong></td><td><code>qwen3:8b</code></td></tr>
+  <tr><td><strong>Формат</strong></td><td>OpenAI Chat API</td></tr>
+</table>
+
+<p>Для OpenAI SDK (Python/JS/Go) — указать только <code>base_url</code> и <code>api_key</code>, всё остальное стандартное.</p>
+
+<h2>3. Основные команды</h2>
+
+<h3>Список моделей</h3>
+<pre><code><span class="lang-tag">bash</span>curl -H "Authorization: Bearer $KEY" \
+  http://212.24.45.138:42367/v1/models</code></pre>
+
+<h3>Запрос (синхронный)</h3>
+<pre><code><span class="lang-tag">bash</span>curl http://212.24.45.138:42367/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3:8b",
+    "messages": [
+      {"role": "system", "content": "Ты ассистент."},
+      {"role": "user", "content": "Что такое SIP?"}
+    ],
+    "stream": false,
+    "max_tokens": 500
+  }'</code></pre>
+
+<h3>Запрос (стриминг)</h3>
+<pre><code><span class="lang-tag">bash</span>curl http://212.24.45.138:42367/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3:8b",
+    "messages": [{"role": "user", "content": "Привет!"}],
+    "stream": true
+  }'</code></pre>
+<p>Ответ приходит чанками в формате SSE (<code>data: {...}</code>), завершается <code>data: [DONE]</code>.</p>
+
+<h2>4. Параметры запроса</h2>
+
+<table>
+  <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+  <tr><td><code>model</code></td><td>string</td><td>Название модели (<code>qwen3:8b</code>)</td></tr>
+  <tr><td><code>messages</code></td><td>array</td><td>Массив <code>{role, content}</code>. Роли: <code>system</code>, <code>user</code>, <code>assistant</code></td></tr>
+  <tr><td><code>stream</code></td><td>bool</td><td><code>true</code> — SSE-поток, <code>false</code> — один JSON</td></tr>
+  <tr><td><code>temperature</code></td><td>float</td><td>Креативность, 0.0–1.0 (default: модельный)</td></tr>
+  <tr><td><code>top_p</code></td><td>float</td><td>Nucleus sampling, 0.0–1.0</td></tr>
+  <tr><td><code>max_tokens</code></td><td>int</td><td>Лимит токенов ответа (<strong>минимум 200</strong>)</td></tr>
+</table>
+
+<div class="warn"><strong>Важно:</strong> Qwen3 тратит ~100-150 токенов на скрытый <code>&lt;think&gt;</code> блок перед ответом. При <code>max_tokens &lt; 200</code> ответ может быть пустым — весь бюджет уходит на размышления модели.</div>
+
+<h2>5. Формат ответа</h2>
+
+<h3>Синхронный (<code>stream: false</code>)</h3>
+<pre><code><span class="lang-tag">json</span>{
+  "id": "chatcmpl-...",
+  "object": "chat.completion",
+  "model": "qwen3:8b",
+  "choices": [{
+    "message": {"role": "assistant", "content": "Ответ"},
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 20,
+    "completion_tokens": 150,
+    "total_tokens": 170
+  }
+}</code></pre>
+
+<h3>Стриминг (<code>stream: true</code>)</h3>
+<pre><code><span class="lang-tag">sse</span>data: {"id":"chatcmpl-...","object":"chat.completion.chunk","choices":[{"delta":{"content":"токен"},"finish_reason":null}]}
+
+data: [DONE]</code></pre>
+
+<h2>6. Быстрая проверка</h2>
+
+<pre><code><span class="lang-tag">bash</span># Задать ключ
+export KEY="&lt;ваш LLM_API_KEY&gt;"
+
+# Проверить доступность
+curl -s -H "Authorization: Bearer $KEY" \
+  http://212.24.45.138:42367/v1/models | python3 -m json.tool
+
+# Тестовый запрос
+curl -s http://212.24.45.138:42367/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3:8b","messages":[{"role":"user","content":"Скажи привет"}],"stream":false,"max_tokens":200}' \
+  | python3 -m json.tool</code></pre>
+
+<h2>7. Примеры на Python (OpenAI SDK)</h2>
+
+<pre><code><span class="lang-tag">bash</span>pip install openai</code></pre>
+
+<pre><code><span class="lang-tag">python</span>from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://212.24.45.138:42367/v1",
+    api_key="&lt;ваш LLM_API_KEY&gt;"
+)
+
+# Простой запрос
+response = client.chat.completions.create(
+    model="qwen3:8b",
+    messages=[
+        {"role": "system", "content": "Ты полезный ассистент."},
+        {"role": "user", "content": "Что такое ВАТС?"}
+    ]
+)
+print(response.choices[0].message.content)</code></pre>
+
+<pre><code><span class="lang-tag">python</span># Стриминг
+stream = client.chat.completions.create(
+    model="qwen3:8b",
+    messages=[{"role": "user", "content": "Объясни кратко что такое SIP"}],
+    stream=True
+)
+for chunk in stream:
+    content = chunk.choices[0].delta.content
+    if content:
+        print(content, end="", flush=True)</code></pre>
+
+<h2>8. Примечания</h2>
+
+<ul>
+  <li><strong>Многоходовый диалог:</strong> Добавляйте предыдущие ответы в <code>messages</code> с <code>role: "assistant"</code> — модель видит всю историю.</li>
+  <li><strong>System prompt:</strong> Задаёт поведение модели на весь диалог. Полезно для специализации: «Ты эксперт по телефонии».</li>
+  <li><strong>Совместимость:</strong> API работает с LangChain, LlamaIndex, AutoGen и любыми фреймворками, поддерживающими OpenAI формат.</li>
+  <li><strong>Реализация:</strong> <code>src/web/routes/openai_compat.py</code> — прокси к Ollama.</li>
+</ul>
+
+        </main>
+        <footer>
+          <div class="tagline">Gravitel AI &middot; Docs</div>
+          <div>Источник: <code>agent_docs/guides/llm-api.md</code></div>
+        </footer>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll('#content pre').forEach(pre => {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      btn.onclick = () => {
+        const code = pre.querySelector('code');
+        const text = code.textContent.replace(/^(bash|python|json|sse|curl)\n?/, '');
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = 'Copied!';
+          setTimeout(() => btn.textContent = 'Copy', 1500);
+        });
+      };
+      pre.style.position = 'relative';
+      pre.appendChild(btn);
+    });
+  </script>
+</body>
+</html>
