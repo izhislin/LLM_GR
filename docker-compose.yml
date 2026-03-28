@@ -3,7 +3,7 @@ services:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
     ports:
-      - "3080:8080"
+      - "8090:8080"
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Отключить регистрацию — первый пользователь становится админом
