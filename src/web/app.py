@@ -23,7 +23,7 @@ from src.metrics import start_metrics_server
 from src.domain_config import load_domains_config
 from src.gravitel_api import GravitelClient
 from src.worker import CallWorker
-from src.web.routes import webhook, api, openai_compat
+from src.web.routes import webhook, api, openai_compat, dashboard
 
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -250,6 +250,7 @@ async def lifespan(app: FastAPI):
         on_new_call=_on_new_call,
     )
     api.set_dependencies(db=_db, domain_configs=_domain_configs)
+    dashboard.set_dependencies(db=_db)
 
     for domain, client in _api_clients.items():
         await _sync_directory(domain, client)
@@ -333,6 +334,7 @@ app.add_middleware(BasicAuthMiddleware)
 app.include_router(webhook.router)
 app.include_router(api.router)
 app.include_router(openai_compat.router)
+app.include_router(dashboard.router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
