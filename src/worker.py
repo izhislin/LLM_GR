@@ -5,6 +5,8 @@ import logging
 import time
 from pathlib import Path
 
+from src.analytics.client_profiles import update_profile_on_call
+from src.analytics.search import index_call
 from src.db import (
     get_call,
     get_pending_calls,
@@ -88,6 +90,13 @@ class CallWorker:
                 processing_time_sec=processing_time,
             )
             logger.info("Обработан: %s (%.1f сек)", call_id, processing_time)
+
+            # Аналитика: индексация FTS5 + обновление профиля клиента
+            try:
+                index_call(self.db, call_id)
+                update_profile_on_call(self.db, call_id)
+            except Exception as analytics_err:
+                logger.warning("Ошибка аналитики для %s: %s", call_id, analytics_err)
 
         except Exception as e:
             processing_time = time.monotonic() - start_time
