@@ -145,6 +145,72 @@ def insert_call(conn: sqlite3.Connection, call: dict) -> bool:
     return cursor.rowcount > 0
 
 
+def update_call_from_polling(conn: sqlite3.Connection, call_id: str, data: dict) -> bool:
+    """Обновить звонок данными из polling (record_url, duration и т.д.).
+
+    Обновляет только если текущий record_url пуст (звонок создан webhook-ом
+    без полных данных). Это предотвращает повторное обновление уже заполненных записей.
+
+    Args:
+        conn: соединение с БД.
+        call_id: ID звонка.
+        data: словарь с полями для обновления (record_url, duration, result,
+              wait, operator_extension, operator_name).
+
+    Returns:
+        True если обновление произошло, False если record_url уже заполнен
+        или звонок не найден.
+    """
+    cursor = conn.execute(
+        """
+        UPDATE calls
+        SET record_url = ?,
+            duration = ?,
+            result = ?,
+            wait = ?,
+            operator_extension = COALESCE(NULLIF(?, ''), operator_extension),
+            operator_name = COALESCE(?, operator_name)
+        WHERE id = ? AND (record_url IS NULL OR record_url = '')
+        """,
+        (
+            data.get("record_url", ""),
+            data.get("duration", 0),
+            data.get("result", ""),
+            data.get("wait", 0),
+            data.get("operator_extension", ""),
+            data.get("operator_name"),
+            call_id,
+        ),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def reopen_processing(conn: sqlite3.Connection, call_id: str) -> bool:
+    """Перевести processing из skipped в pending.
+
+    Используется когда polling обновил данные звонка (record_url, duration)
+    и он теперь проходит фильтры.
+
+    Args:
+        conn: соединение с БД.
+        call_id: ID звонка.
+
+    Returns:
+        True если статус изменён, False если запись не skipped.
+    """
+    cursor = conn.execute(
+        """
+        UPDATE processing
+        SET status = 'pending', skip_reason = NULL
+        WHERE call_id = ? AND status = 'skipped'
+        """,
+        (call_id,),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
 def get_call(conn: sqlite3.Connection, call_id: str) -> dict | None:
     """Получить звонок по ID.
 

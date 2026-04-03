@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Диагностика и восстановление pipeline — Gravitel AI Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='100 150 600 500' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M535.311 486.256C633.081 446.483 690.649 398.003 680.938 361.431C671.803 327.025 605.007 312.865 509.417 322.64L494.383 325.183C493.909 323.881 493.422 322.554 492.922 321.199L467.512 261.338C453.403 227.07 416.188 208.521 380.589 218.014L308.774 237.165C307.543 237.493 306.239 236.947 305.601 235.835C303.018 231.325 300.607 226.953 298.234 222.651C289.521 206.854 281.325 191.991 266.994 174.616C258.757 164.627 243.181 168.645 240.515 181.288C235.928 203.029 236.246 214.945 236.823 236.544C236.976 242.298 237.148 248.74 237.25 256.238C241.994 310.07 246.492 346.62 253.191 390.549L242.895 395.237C163.186 432.382 114.347 475.599 122.985 508.131C132.47 543.849 208.593 556.709 309.725 544.738C364.23 539.893 438.182 519.838 480.694 505.329C483.779 504.276 485.827 507.96 483.119 509.769C443.343 536.34 377.026 559.966 317.486 566.469L318.697 570.968C331.251 607.668 369.951 628.46 407.213 618.523L483.718 598.122C522.774 587.707 547.187 547.008 539.519 507.431L535.311 486.256ZM303.713 331.862L312.029 373.87C315.297 390.373 316.931 398.627 321.411 404.13C325.348 408.967 330.758 412.373 336.803 413.82C343.682 415.466 351.773 413.335 367.954 409.073L411.098 397.71C427.431 393.407 435.598 391.256 440.776 386.391C445.326 382.116 448.326 376.439 449.305 370.25C450.419 363.207 447.628 355.184 442.046 339.139L428.073 298.975C423.24 285.083 420.823 278.136 416.313 273.561C412.34 269.531 407.263 266.782 401.735 265.667C395.457 264.401 388.37 266.2 374.195 269.8L336.708 279.32C322.168 283.013 314.898 284.859 309.938 289.086C305.573 292.807 302.449 297.782 300.983 303.346C299.319 309.668 300.783 317.066 303.713 331.862Z' fill='%234F46E5'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338ca;
+      --primary-light: #818cf8;
+      --primary-50: #eef2ff;
+      --primary-100: #e0e7ff;
+      --primary-200: #c7d2fe;
+      --primary-800: #3730a3;
+      --primary-900: #312e81;
+      --accent: #d946ef;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --bg-code: #1e1b4b;
+      --border: #e5e7eb;
+      --green: #059669;
+      --green-bg: #ecfdf5;
+      --green-border: #a7f3d0;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+      --red-border: #fecaca;
+      --amber: #d97706;
+      --amber-bg: #fffbeb;
+      --amber-border: #fde68a;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+    }
+    .header {
+      background: linear-gradient(135deg, var(--primary-900) 0%, var(--primary) 50%, var(--primary-light) 100%);
+      color: white;
+      padding: 32px 24px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      top: -40%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(217,70,239,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-inner { max-width: 960px; margin: 0 auto; position: relative; z-index: 1; }
+    .logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .logo-icon { width: 36px; height: 36px; }
+    .logo-text { font-size: .85rem; opacity: .8; letter-spacing: .06em; }
+    .header h1 {
+      font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.2rem);
+      font-weight: 700; margin-bottom: 8px;
+    }
+    .header .subtitle { font-size: .95rem; opacity: .85; }
+    .toc { max-width: 960px; margin: -20px auto 0; padding: 0 24px; position: relative; z-index: 2; }
+    .toc-inner {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      padding: 16px 20px;
+      display: flex; flex-wrap: wrap; gap: 6px 16px;
+    }
+    .toc a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: .82rem;
+      font-weight: 500;
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+      transition: border-color .15s;
+    }
+    .toc a:hover { border-color: var(--primary-light); }
+    .content { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+    .section {
+      background: var(--bg-primary);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 28px 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    @media (min-width: 768px) { .section { padding: 32px 36px; } }
+    h2 {
+      font-size: 1.25rem; font-weight: 700; color: var(--primary-900);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+    }
+    h2 .num {
+      background: var(--primary); color: white;
+      width: 28px; height: 28px; border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: .8rem; font-weight: 700; flex-shrink: 0;
+    }
+    h3 { font-size: 1.02rem; font-weight: 600; margin: 1.2em 0 .5em; }
+    p { color: var(--text-secondary); margin: .4em 0 .8em; font-size: .9rem; }
+    ul, ol { margin: .4em 0 .8em; padding-left: 1.4em; color: var(--text-secondary); font-size: .9rem; }
+    li { margin-bottom: .3em; }
+    table {
+      width: 100%; border-collapse: collapse; margin: .6em 0;
+      font-size: .85rem; border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th {
+      background: var(--primary); color: white;
+      font-weight: 500; font-size: .82rem; padding: 10px 14px; text-align: left;
+      border: 1px solid var(--border);
+    }
+    td { padding: 10px 14px; color: var(--text-secondary); border: 1px solid var(--border); }
+    tr:nth-child(even) { background: var(--bg-secondary); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .82em;
+      background: var(--primary-50); color: var(--primary-800);
+      padding: 2px 7px; border-radius: 6px; border: 1px solid var(--primary-100);
+    }
+    pre {
+      background: var(--bg-code); padding: 16px 18px; border-radius: 12px;
+      overflow-x: auto; font-size: .8rem; line-height: 1.55;
+      color: #e0e7ff; position: relative; margin: .6em 0;
+    }
+    pre code { background: none; padding: 0; border: none; color: inherit; }
+    .note {
+      background: var(--primary-50); border: 1px solid var(--primary-200);
+      border-left: 4px solid var(--primary); border-radius: 0 10px 10px 0;
+      padding: 12px 16px; margin: .8em 0; font-size: .85rem;
+    }
+    .note strong { color: var(--primary); }
+    .warn {
+      background: var(--amber-bg); border: 1px solid var(--amber-border);
+      border-left: 4px solid var(--amber); border-radius: 0 10px 10px 0;
+      padding: 12px 16px; margin: .8em 0; font-size: .85rem;
+    }
+    .warn strong { color: #b45309; }
+    .status-ok { color: var(--green); font-weight: 600; }
+    .status-err { color: var(--red); font-weight: 600; }
+    .status-warn { color: var(--amber); font-weight: 600; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 1em 0;
+    }
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+    .metric-value.green { color: var(--green); }
+    .metric-value.red { color: var(--red); }
+    .metric-value.amber { color: var(--amber); }
+    .metric-label {
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .timeline {
+      border-left: 3px solid var(--primary-200);
+      padding-left: 20px;
+      margin: 1em 0;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      top: 6px;
+      width: 10px;
+      height: 10px;
+      background: var(--primary);
+      border-radius: 50%;
+    }
+    .timeline-time {
+      font-size: .78rem;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+    .timeline-text {
+      font-size: .88rem;
+      color: var(--text-secondary);
+    }
+    .footer {
+      max-width: 960px; margin: 0 auto; padding: 0 24px 48px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 8px;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 8px; }
+    .footer-brand svg { width: 20px; height: 20px; }
+    .footer-text { font-size: .75rem; color: var(--text-muted); letter-spacing: .04em; }
+    @media print {
+      .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo-row">
+        <svg class="logo-icon" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M535.311 486.256C633.081 446.483 690.649 398.003 680.938 361.431C671.803 327.025 605.007 312.865 509.417 322.64L494.383 325.183C493.909 323.881 493.422 322.554 492.922 321.199L467.512 261.338C453.403 227.07 416.188 208.521 380.589 218.014L308.774 237.165C307.543 237.493 306.239 236.947 305.601 235.835C303.018 231.325 300.607 226.953 298.234 222.651C289.521 206.854 281.325 191.991 266.994 174.616C258.757 164.627 243.181 168.645 240.515 181.288C235.928 203.029 236.246 214.945 236.823 236.544C236.976 242.298 237.148 248.74 237.25 256.238C241.994 310.07 246.492 346.62 253.191 390.549L242.895 395.237C163.186 432.382 114.347 475.599 122.985 508.131C132.47 543.849 208.593 556.709 309.725 544.738C364.23 539.893 438.182 519.838 480.694 505.329C483.779 504.276 485.827 507.96 483.119 509.769C443.343 536.34 377.026 559.966 317.486 566.469L318.697 570.968C331.251 607.668 369.951 628.46 407.213 618.523L483.718 598.122C522.774 587.707 547.187 547.008 539.519 507.431L535.311 486.256ZM303.713 331.862L312.029 373.87C315.297 390.373 316.931 398.627 321.411 404.13C325.348 408.967 330.758 412.373 336.803 413.82C343.682 415.466 351.773 413.335 367.954 409.073L411.098 397.71C427.431 393.407 435.598 391.256 440.776 386.391C445.326 382.116 448.326 376.439 449.305 370.25C450.419 363.207 447.628 355.184 442.046 339.139L428.073 298.975C423.24 285.083 420.823 278.136 416.313 273.561C412.34 269.531 407.263 266.782 401.735 265.667C395.457 264.401 388.37 266.2 374.195 269.8L336.708 279.32C322.168 283.013 314.898 284.859 309.938 289.086C305.573 292.807 302.449 297.782 300.983 303.346C299.319 309.668 300.783 317.066 303.713 331.862Z" fill="white"/></svg>
+        <span class="logo-text">Gravitel AI Lab</span>
+      </div>
+      <h1>Диагностика и восстановление pipeline</h1>
+      <div class="subtitle">Отчёт — 31 марта 2026</div>
+    </div>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-inner">
+      <a href="#summary">Итог</a>
+      <a href="#problem">Проблема</a>
+      <a href="#root-cause">Корневая причина</a>
+      <a href="#fix">Исправление</a>
+      <a href="#processing">Обработка очереди</a>
+      <a href="#performance">Производительность</a>
+      <a href="#server">Состояние сервера</a>
+      <a href="#files">Изменённые файлы</a>
+    </div>
+  </nav>
+
+  <div class="content">
+
+    <!-- 1. Summary -->
+    <div class="section" id="summary">
+      <h2><span class="num">1</span> Итог</h2>
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-value green">282</div>
+          <div class="metric-label">звонков обработано</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">97</div>
+          <div class="metric-label">минут на обработку</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">5</div>
+          <div class="metric-label">дней простоя pipeline</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value green">1455</div>
+          <div class="metric-label">всего обработано (done)</div>
+        </div>
+      </div>
+      <p>Pipeline транскрибации не обрабатывал новые звонки с 27 марта из-за конфликта webhook и polling. Проблема диагностирована, исправлена, 282 пропущенных звонка обработаны за 97 минут.</p>
+    </div>
+
+    <!-- 2. Problem -->
+    <div class="section" id="problem">
+      <h2><span class="num">2</span> Обнаруженная проблема</h2>
+      <p>При диагностике стенда 31 марта выявлено:</p>
+      <ul>
+        <li>Все сервисы работают (Ollama, Web App, Open WebUI, exporters)</li>
+        <li>Webhook принимает звонки (135/день), polling запускается каждые 10 минут</li>
+        <li><strong>Но с 27 марта — 0 обработанных звонков</strong>. Все 553 звонка за 27–31 марта получили статус <code>skipped: no record</code></li>
+      </ul>
+      <table>
+        <tr><th>Дата</th><th>Звонков</th><th>С записью</th><th>Обработано</th></tr>
+        <tr><td>24 марта</td><td>242</td><td>197</td><td class="status-ok">135</td></tr>
+        <tr><td>25 марта</td><td>265</td><td>208</td><td class="status-ok">123</td></tr>
+        <tr><td>26 марта</td><td>285</td><td>203</td><td class="status-ok">117</td></tr>
+        <tr><td>27 марта</td><td>175</td><td class="status-err">0</td><td class="status-err">0</td></tr>
+        <tr><td>28 марта</td><td>12</td><td class="status-err">0</td><td class="status-err">0</td></tr>
+        <tr><td>29 марта</td><td>11</td><td class="status-err">0</td><td class="status-err">0</td></tr>
+        <tr><td>30 марта</td><td>220</td><td class="status-err">0</td><td class="status-err">0</td></tr>
+        <tr><td>31 марта</td><td>135</td><td class="status-err">0</td><td class="status-err">0</td></tr>
+      </table>
+    </div>
+
+    <!-- 3. Root cause -->
+    <div class="section" id="root-cause">
+      <h2><span class="num">3</span> Корневая причина</h2>
+      <p>Конфликт между webhook и polling при обработке одних и тех же звонков:</p>
+
+      <h3>Цепочка событий</h3>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-time">26 марта — фикс webhook</div>
+          <div class="timeline-text">Исправлен баг с суффиксом <code>/event</code> в URL. Webhook начал принимать звонки (ранее все шли 404).</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">27 марта — начало проблемы</div>
+          <div class="timeline-text">Webhook создаёт запись звонка <strong>мгновенно</strong> с пустым <code>record_url</code> и <code>duration=0</code> (запись ещё не готова). Фильтр ставит <code>skipped: no record</code>.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-time">+10 мин — polling</div>
+          <div class="timeline-text">Polling получает тот же звонок от API <strong>с записью и длительностью</strong>. Но <code>get_call()</code> находит существующий ID → <code>continue</code> → данные не обновляются.</div>
+        </div>
+      </div>
+
+      <h3>Проблемный код</h3>
+      <p><code>src/web/app.py</code>, функция <code>_poll_domain</code>:</p>
+      <pre><code>if not call_id or get_call(_db, call_id):
+    continue  # polling пропускает уже известные звонки</code></pre>
+      <p><code>INSERT OR IGNORE</code> в <code>insert_call</code> также не обновляет существующие записи.</p>
+
+      <div class="note">
+        <strong>До 26 марта</strong> webhook-и не работали (404), поэтому все звонки приходили через polling с полными данными. После фикса webhook стал перехватывать звонки первым, создавая «пустые» записи.
+      </div>
+    </div>
+
+    <!-- 4. Fix -->
+    <div class="section" id="fix">
+      <h2><span class="num">4</span> Исправление</h2>
+
+      <h3>4.1 Новые функции в <code>src/db.py</code></h3>
+      <ul>
+        <li><code>update_call_from_polling()</code> — обновляет <code>record_url</code>, <code>duration</code>, <code>result</code> и другие поля, только если текущий <code>record_url</code> пуст</li>
+        <li><code>reopen_processing()</code> — переводит запись из <code>skipped</code> → <code>pending</code> с очисткой <code>skip_reason</code></li>
+      </ul>
+
+      <h3>4.2 Изменение <code>_poll_domain</code></h3>
+      <p>Вместо <code>continue</code> при существующем звонке — обновление данных и переоценка фильтра:</p>
+      <pre><code>existing = get_call(_db, call_id)
+if existing:
+    if not existing["record_url"] and call["record_url"]:
+        update_call_from_polling(_db, call_id, call)
+        passed, _reason = filter_call(call, config.filters)
+        if passed:
+            reopen_processing(_db, call_id)
+    continue</code></pre>
+
+      <h3>4.3 Бэкфилл при старте</h3>
+      <p>Одноразовый проход по истории за последние 7 дней при запуске приложения, чтобы подтянуть <code>record_url</code> для ранее пропущенных звонков. В дальнейшем служит safety net при перезапусках.</p>
+
+      <h3>4.4 Непрерывная обработка очереди</h3>
+      <p>Scheduler loop обрабатывает пачки pending звонков без 10-минутных пауз между ними. Раньше: 10 звонков → пауза 10 мин → 10 звонков. Теперь: 10 → 10 → 10 → ... → пауза (только когда очередь пуста).</p>
+    </div>
+
+    <!-- 5. Processing results -->
+    <div class="section" id="processing">
+      <h2><span class="num">5</span> Обработка очереди</h2>
+
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-value">14:08</div>
+          <div class="metric-label">начало (UTC)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">15:45</div>
+          <div class="metric-label">конец (UTC)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">~20.6</div>
+          <div class="metric-label">сек/звонок (среднее)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value red">4</div>
+          <div class="metric-label">ошибки (старые)</div>
+        </div>
+      </div>
+
+      <h3>По дням</h3>
+      <table>
+        <tr><th>Дата</th><th>Обработано</th><th>В очереди на старте</th></tr>
+        <tr><td>26 марта</td><td>9</td><td>9 (доп. за день)</td></tr>
+        <tr><td>27 марта</td><td>~85</td><td>85</td></tr>
+        <tr><td>28 марта</td><td>~10</td><td>10</td></tr>
+        <tr><td>29 марта</td><td>~5</td><td>5</td></tr>
+        <tr><td>30 марта</td><td>~104</td><td>104</td></tr>
+        <tr><td>31 марта</td><td>~69</td><td>59 + 10 новых</td></tr>
+        <tr style="font-weight:600"><td>Итого</td><td>282</td><td></td></tr>
+      </table>
+
+      <h3>Скорость по длительности звонка</h3>
+      <table>
+        <tr><th>Длительность</th><th>Количество</th><th>Среднее время обработки</th></tr>
+        <tr><td>&lt; 1 мин</td><td>90</td><td>9.2 сек</td></tr>
+        <tr><td>1–3 мин</td><td>68</td><td>12.9 сек</td></tr>
+        <tr><td>3–10 мин</td><td>25</td><td>17.8 сек</td></tr>
+        <tr><td>&gt; 10 мин</td><td>9</td><td>30.9 сек</td></tr>
+      </table>
+
+      <h3>Ошибки</h3>
+      <p>4 звонка с ошибкой <code>Ollama connection refused</code> (3 retry исчерпаны). Это старые ошибки от 26 марта, когда Ollama был временно недоступен. Не связаны с текущим фиксом.</p>
+    </div>
+
+    <!-- 6. Performance -->
+    <div class="section" id="performance">
+      <h2><span class="num">6</span> Производительность pipeline</h2>
+
+      <h3>Распределение времени на звонок (~20 сек)</h3>
+      <table>
+        <tr><th>Этап</th><th>Время</th><th>Доля</th></tr>
+        <tr><td>Скачивание MP3</td><td>~0.5 сек</td><td>2%</td></tr>
+        <tr><td>Split stereo → 2x mono</td><td>~0.1 сек</td><td>&lt;1%</td></tr>
+        <tr><td>GigaAM транскрибация (2 канала)</td><td>~1.5 сек</td><td>8%</td></tr>
+        <tr><td>Коррекция текста</td><td>&lt;1 мс</td><td>&lt;1%</td></tr>
+        <tr><td>LLM: суммаризация</td><td>~9 сек</td><td>45%</td></tr>
+        <tr><td>LLM: оценка качества</td><td>~5 сек</td><td>25%</td></tr>
+        <tr><td>LLM: извлечение данных</td><td>~3 сек</td><td>15%</td></tr>
+      </table>
+
+      <div class="note">
+        <strong>85% времени</strong> занимает LLM inference (Qwen3-8B через Ollama). GPU utilization при этом низкий — inference на 8B модели memory-bound, а не compute-bound. Токены генерируются на скорости 74.7 tok/sec.
+      </div>
+
+      <h3>Эффект оптимизации scheduler</h3>
+      <table>
+        <tr><th>Параметр</th><th>До</th><th>После</th></tr>
+        <tr><td>Звонков за цикл</td><td>10</td><td>10 (без изменений)</td></tr>
+        <tr><td>Пауза между пачками</td><td>10 мин</td><td>0 (пока есть pending)</td></tr>
+        <tr><td>Время на 282 звонка</td><td class="status-err">~4.8 ч (прогноз)</td><td class="status-ok">1.6 ч (факт)</td></tr>
+        <tr><td>Утилизация GPU</td><td>~20%</td><td>~85%</td></tr>
+      </table>
+    </div>
+
+    <!-- 7. Server -->
+    <div class="section" id="server">
+      <h2><span class="num">7</span> Состояние сервера</h2>
+      <table>
+        <tr><th>Компонент</th><th>Статус</th><th>Детали</th></tr>
+        <tr><td>Uptime</td><td class="status-ok">19 дней</td><td>Load 0.07</td></tr>
+        <tr><td>GPU</td><td class="status-ok">RTX 5060 Ti</td><td>4.3/16.3 GB VRAM, 40°C</td></tr>
+        <tr><td>RAM</td><td class="status-ok">3.6/62 GB</td><td></td></tr>
+        <tr><td>Disk</td><td class="status-ok">79/914 GB (10%)</td><td></td></tr>
+        <tr><td>Ollama</td><td class="status-ok">qwen3:8b</td><td>78.5 tok/s</td></tr>
+        <tr><td>Web App</td><td class="status-ok">uvicorn</td><td>Порт 8080</td></tr>
+        <tr><td>Open WebUI</td><td class="status-ok">Docker healthy</td><td>Порт 8091</td></tr>
+        <tr><td>node_exporter</td><td class="status-ok">active</td><td>Порт 9100</td></tr>
+        <tr><td>nvidia_gpu_exporter</td><td class="status-ok">active</td><td>Порт 9835</td></tr>
+      </table>
+      <p>БД: 2900+ звонков, 1455 обработаны, 1453 пропущены (нет записи / слишком короткие), 4 ошибки.</p>
+    </div>
+
+    <!-- 8. Changed files -->
+    <div class="section" id="files">
+      <h2><span class="num">8</span> Изменённые файлы</h2>
+      <table>
+        <tr><th>Файл</th><th>Изменения</th></tr>
+        <tr><td><code>src/db.py</code></td><td>Добавлены <code>update_call_from_polling()</code>, <code>reopen_processing()</code></td></tr>
+        <tr><td><code>src/web/app.py</code></td><td><code>_poll_domain</code>: обновление существующих звонков; бэкфилл при старте; непрерывная обработка очереди</td></tr>
+        <tr><td><code>tests/test_web/test_db.py</code></td><td>+8 тестов (170 passed)</td></tr>
+      </table>
+
+      <div class="warn">
+        <strong>Не закоммичено.</strong> Изменения задеплоены на сервер через SCP, но git-коммит не создан. Рекомендуется закоммитить и синхронизировать репозиторий.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">
+      <svg viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M535.311 486.256C633.081 446.483 690.649 398.003 680.938 361.431C671.803 327.025 605.007 312.865 509.417 322.64L494.383 325.183C493.909 323.881 493.422 322.554 492.922 321.199L467.512 261.338C453.403 227.07 416.188 208.521 380.589 218.014L308.774 237.165C307.543 237.493 306.239 236.947 305.601 235.835C303.018 231.325 300.607 226.953 298.234 222.651C289.521 206.854 281.325 191.991 266.994 174.616C258.757 164.627 243.181 168.645 240.515 181.288C235.928 203.029 236.246 214.945 236.823 236.544C236.976 242.298 237.148 248.74 237.25 256.238C241.994 310.07 246.492 346.62 253.191 390.549L242.895 395.237C163.186 432.382 114.347 475.599 122.985 508.131C132.47 543.849 208.593 556.709 309.725 544.738C364.23 539.893 438.182 519.838 480.694 505.329C483.779 504.276 485.827 507.96 483.119 509.769C443.343 536.34 377.026 559.966 317.486 566.469L318.697 570.968C331.251 607.668 369.951 628.46 407.213 618.523L483.718 598.122C522.774 587.707 547.187 547.008 539.519 507.431L535.311 486.256ZM303.713 331.862L312.029 373.87C315.297 390.373 316.931 398.627 321.411 404.13C325.348 408.967 330.758 412.373 336.803 413.82C343.682 415.466 351.773 413.335 367.954 409.073L411.098 397.71C427.431 393.407 435.598 391.256 440.776 386.391C445.326 382.116 448.326 376.439 449.305 370.25C450.419 363.207 447.628 355.184 442.046 339.139L428.073 298.975C423.24 285.083 420.823 278.136 416.313 273.561C412.34 269.531 407.263 266.782 401.735 265.667C395.457 264.401 388.37 266.2 374.195 269.8L336.708 279.32C322.168 283.013 314.898 284.859 309.938 289.086C305.573 292.807 302.449 297.782 300.983 303.346C299.319 309.668 300.783 317.066 303.713 331.862Z" fill="#4F46E5"/></svg>
+      <span class="footer-text">Gravitel AI Lab</span>
+    </div>
+    <span class="footer-text">Сгенерировано: 31 марта 2026</span>
+  </div>
+
+</body>
+</html>

@@ -4,6 +4,54 @@
 
 ---
 
+### 2026-03-13 — HTTP-клиент Gravitel API
+
+- Создан `src/gravitel_api.py`: асинхронный HTTP-клиент (`httpx.AsyncClient`) для CRM API Гравител
+- `GravitelClient`: init(domain, api_key, timeout), close(), 4 async-метода
+- `fetch_history()`: POST с period/start/end/type/limit, возвращает список звонков
+- `fetch_accounts()`, `fetch_groups()`: GET-запросы для справочников домена
+- `download_record()`: скачивание файла записи с сохранением на диск (создаёт parent dirs)
+- Все методы передают `X-API-KEY` заголовок и вызывают `raise_for_status()`
+- Создан `tests/test_web/test_gravitel_api.py`: 12 тестов (TDD, AsyncMock + httpx.Response)
+- Тесты: возврат данных, передача auth-заголовка, параметры запроса, сохранение файла, ошибки 401/500
+
+### 2026-03-13 — Модуль фильтрации звонков
+
+- Создан `src/call_filter.py`: функция `filter_call(call, filters)` — последовательная проверка звонка по фильтрам домена
+- Проверки: наличие записи, мин/макс длительность, результат, тип звонка
+- Использует `CallFilters` из `src/domain_config.py`
+- Создан `tests/test_web/test_call_filter.py`: 9 тестов (TDD), всего 66 тестов — все проходят
+
+### 2026-03-13 — Модуль конфигурации доменов
+
+- Создан `src/domain_config.py`: датаклассы `CallFilters` и `DomainConfig`, функция `load_domains_config()`
+- `CallFilters`: фильтрация звонков по длительности, типу, наличию записи, результату (дефолты для всех полей)
+- `DomainConfig`: api_key_env, profile, enabled, polling_interval_min, filters
+- `load_domains_config()`: загрузка из YAML (`config/domains.yaml`), поддержка частичных фильтров с дефолтами
+- Создан `tests/test_domain_config.py`: 11 тестов (TDD), всего 57 тестов — все проходят
+
+### 2026-03-13 — Prometheus-экспортёры на сервере
+
+- Установлен `node_exporter` v1.7.0 (apt) — CPU, RAM, disk, network
+- Установлен `nvidia_gpu_exporter` v1.4.1 (.deb, скачан локально и передан по SCP) — GPU util, memory, temp, power
+- Ollama v0.17.7 не поддерживает встроенные Prometheus-метрики (`OLLAMA_METRICS` не существует), порт зарезервирован
+- Маппинг MikroTik: 42363→9100, 42364→9835, 42365→8000, 42366→11434
+- Документация: `agent_docs/guides/server-access.md` (секция «Мониторинг»)
+
+### 2026-03-13 — Улучшение качества анализа (Подход A)
+
+- Уточнена целевая аудитория в AGENTS.md: сервис для клиентов Гравител (компании с ВАТС), не для собственного колл-центра
+- `text_corrector.py`: добавлены паттерны для обрезанных слов GigaAM (`штри`→`штрих`, `добавочн`→`добавочный`)
+- `profiles/gravitel.yaml`: добавлены термины (`софтфон`), расширен `llm_context` (домены, продукты)
+- `llm_analyzer.py`: `analyze_dialogue()` принимает `llm_context` и добавляет его перед диалогом во все LLM-вызовы
+- `pipeline.py`: передаёт `llm_context` из профиля в `analyze_dialogue()`
+- **Промпты:**
+  - `quality_score.md`: IVR-детекция (`is_ivr: true`), уточнены критерии greeting (перевод звонка), откалибрована шкала (7-8 = норма)
+  - `summarize.md`: добавлены `call_type` и `action_items`
+  - `extract_data.md`: добавлены `operator_name` и `department`
+- 37 тестов (было 34), все проходят
+- Дизайн: `docs/plans/2026-03-13-quality-improvements-design.md`
+
 ### 2026-03-11 — Инициализация проекта и утверждение дизайна
 
 - Определены требования: транскрибация двухканальных телефонных записей (русский) + LLM-обработка

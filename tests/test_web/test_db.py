@@ -19,6 +19,8 @@ from src.db import (
     list_calls,
     list_departments,
     list_operators,
+    reopen_processing,
+    update_call_from_polling,
     update_domain_poll_time,
     update_processing_status,
     upsert_department,
@@ -538,3 +540,118 @@ class TestDomainPollTime:
 
         # Временные метки должны быть разными (или как минимум не раньше)
         assert ts2 >= ts1
+
+
+# ── update_call_from_polling ────────────────────────────────────────────────
+
+
+class TestUpdateCallFromPolling:
+    """Тесты обновления звонка данными из polling."""
+
+    @pytest.fixture
+    def webhook_call(self):
+        """Звонок, созданный webhook-ом без записи."""
+        return {
+            "id": "call-wh-001",
+            "domain": "example.gravitel.ru",
+            "direction": "in",
+            "result": "",
+            "duration": 0,
+            "wait": 0,
+            "started_at": "2026-03-27T10:00:00+00:00",
+            "client_number": "+79001234567",
+            "operator_extension": "",
+            "operator_name": None,
+            "phone": "+74951234567",
+            "record_url": "",
+            "source": "webhook",
+            "received_at": "2026-03-27T10:00:01+00:00",
+        }
+
+    @pytest.fixture
+    def polling_data(self):
+        """Данные из polling с record_url и duration."""
+        return {
+            "record_url": "https://records5.gravitel.ru/rec/call-wh-001.mp3",
+            "duration": 120,
+            "result": "success",
+            "wait": 5,
+            "operator_extension": "101",
+            "operator_name": None,
+        }
+
+    def test_updates_empty_record_url(self, db, webhook_call, polling_data):
+        """Обновляет звонок с пустым record_url."""
+        insert_call(db, webhook_call)
+        assert update_call_from_polling(db, "call-wh-001", polling_data) is True
+
+        call = get_call(db, "call-wh-001")
+        assert call["record_url"] == polling_data["record_url"]
+        assert call["duration"] == 120
+        assert call["result"] == "success"
+        assert call["wait"] == 5
+        assert call["operator_extension"] == "101"
+
+    def test_skips_already_filled(self, db, sample_call, polling_data):
+        """Не обновляет звонок с уже заполненным record_url."""
+        insert_call(db, sample_call)  # sample_call имеет record_url
+        assert update_call_from_polling(db, "call-001", polling_data) is False
+
+        call = get_call(db, "call-001")
+        # Оригинальный URL остался
+        assert call["record_url"] == "https://cdn.example.com/rec/call-001.mp3"
+
+    def test_nonexistent_call(self, db, polling_data):
+        """Возвращает False для несуществующего звонка."""
+        assert update_call_from_polling(db, "nonexistent", polling_data) is False
+
+    def test_preserves_existing_extension(self, db, webhook_call, polling_data):
+        """Сохраняет operator_extension, если polling отдаёт пустую строку."""
+        webhook_call["operator_extension"] = "201"
+        insert_call(db, webhook_call)
+
+        polling_data["operator_extension"] = ""
+        update_call_from_polling(db, "call-wh-001", polling_data)
+
+        call = get_call(db, "call-wh-001")
+        assert call["operator_extension"] == "201"
+
+
+# ── reopen_processing ───────────────────────────────────────────────────────
+
+
+class TestReopenProcessing:
+    """Тесты перевода skipped → pending."""
+
+    def test_reopens_skipped(self, db, sample_call):
+        """Переводит skipped → pending и очищает skip_reason."""
+        insert_call(db, sample_call)
+        insert_processing(db, "call-001", status="skipped", skip_reason="no record")
+
+        assert reopen_processing(db, "call-001") is True
+
+        proc = get_processing(db, "call-001")
+        assert proc["status"] == "pending"
+        assert proc["skip_reason"] is None
+
+    def test_ignores_done(self, db, sample_call):
+        """Не трогает звонки со статусом done."""
+        insert_call(db, sample_call)
+        insert_processing(db, "call-001", status="done")
+
+        assert reopen_processing(db, "call-001") is False
+
+        proc = get_processing(db, "call-001")
+        assert proc["status"] == "done"
+
+    def test_ignores_error(self, db, sample_call):
+        """Не трогает звонки со статусом error."""
+        insert_call(db, sample_call)
+        insert_processing(db, "call-001", status="pending")
+        update_processing_status(db, "call-001", "error", error_message="fail")
+
+        assert reopen_processing(db, "call-001") is False
+
+    def test_nonexistent(self, db):
+        """Возвращает False для несуществующего call_id."""
+        assert reopen_processing(db, "nonexistent") is False

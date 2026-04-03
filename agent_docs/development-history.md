@@ -9,6 +9,17 @@
 
 ## Записи
 
+### 2026-03-31 — Исправление конфликта webhook/polling + ускорение очереди
+
+- **Проблема:** С 27 марта pipeline не обрабатывал новые звонки. Все 553 звонка получали `skipped: no record`. Причина: после фикса webhook 26 марта звонки стали приходить сначала через webhook (с пустым `record_url`), а polling при обнаружении уже существующего ID пропускал обновление (`get_call() → continue`).
+- **Фикс `_poll_domain`:** Вместо пропуска существующих звонков — обновление `record_url`, `duration` и других полей через новую функцию `update_call_from_polling()`. При успешном обновлении — переоценка фильтра и `reopen_processing()` (skipped → pending).
+- **Новые функции в `db.py`:** `update_call_from_polling()` (обновляет только если `record_url` пуст), `reopen_processing()` (skipped → pending с очисткой `skip_reason`).
+- **Бэкфилл при старте:** Одноразовый проход по истории за 7 дней при запуске приложения — safety net при перезапусках.
+- **Ускорение очереди:** Scheduler loop теперь обрабатывает pending непрерывно (`while processed > 0`), без 10-мин пауз между пачками. Сократило время обработки 282 звонков с ~4.8ч до 1.6ч.
+- **Результат:** 282 пропущенных звонка за 27–31 марта обработаны за 97 минут. Pipeline работает штатно.
+- **Тесты:** 170 passed (+8 новых: update_call_from_polling × 4, reopen_processing × 4).
+- **Отчёт:** `data/report_2026_03_31_pipeline_fix.html`.
+
 ### 2026-03-28 — OpenAI-compatible API + Open WebUI
 
 - **OpenAI API прокси:** Новый роутер `src/web/routes/openai_compat.py` — реализация `POST /v1/chat/completions` и `GET /v1/models` в формате OpenAI Chat API. Проксирует запросы к Ollama. Поддерживает stream/sync режимы, параметры temperature/top_p/max_tokens.
@@ -117,50 +128,3 @@
 - Создан `tests/test_web/test_db.py`: 37 тестов (TDD), покрытие: init, CRUD, дубликаты, фильтры, пагинация, статусы, retry, операторы, отделы, поллинг доменов
 - Все функции проверены через ручной интеграционный тест (pytest недоступен локально на macOS)
 
-### 2026-03-13 — HTTP-клиент Gravitel API
-
-- Создан `src/gravitel_api.py`: асинхронный HTTP-клиент (`httpx.AsyncClient`) для CRM API Гравител
-- `GravitelClient`: init(domain, api_key, timeout), close(), 4 async-метода
-- `fetch_history()`: POST с period/start/end/type/limit, возвращает список звонков
-- `fetch_accounts()`, `fetch_groups()`: GET-запросы для справочников домена
-- `download_record()`: скачивание файла записи с сохранением на диск (создаёт parent dirs)
-- Все методы передают `X-API-KEY` заголовок и вызывают `raise_for_status()`
-- Создан `tests/test_web/test_gravitel_api.py`: 12 тестов (TDD, AsyncMock + httpx.Response)
-- Тесты: возврат данных, передача auth-заголовка, параметры запроса, сохранение файла, ошибки 401/500
-
-### 2026-03-13 — Модуль фильтрации звонков
-
-- Создан `src/call_filter.py`: функция `filter_call(call, filters)` — последовательная проверка звонка по фильтрам домена
-- Проверки: наличие записи, мин/макс длительность, результат, тип звонка
-- Использует `CallFilters` из `src/domain_config.py`
-- Создан `tests/test_web/test_call_filter.py`: 9 тестов (TDD), всего 66 тестов — все проходят
-
-### 2026-03-13 — Модуль конфигурации доменов
-
-- Создан `src/domain_config.py`: датаклассы `CallFilters` и `DomainConfig`, функция `load_domains_config()`
-- `CallFilters`: фильтрация звонков по длительности, типу, наличию записи, результату (дефолты для всех полей)
-- `DomainConfig`: api_key_env, profile, enabled, polling_interval_min, filters
-- `load_domains_config()`: загрузка из YAML (`config/domains.yaml`), поддержка частичных фильтров с дефолтами
-- Создан `tests/test_domain_config.py`: 11 тестов (TDD), всего 57 тестов — все проходят
-
-### 2026-03-13 — Prometheus-экспортёры на сервере
-
-- Установлен `node_exporter` v1.7.0 (apt) — CPU, RAM, disk, network
-- Установлен `nvidia_gpu_exporter` v1.4.1 (.deb, скачан локально и передан по SCP) — GPU util, memory, temp, power
-- Ollama v0.17.7 не поддерживает встроенные Prometheus-метрики (`OLLAMA_METRICS` не существует), порт зарезервирован
-- Маппинг MikroTik: 42363→9100, 42364→9835, 42365→8000, 42366→11434
-- Документация: `agent_docs/guides/server-access.md` (секция «Мониторинг»)
-
-### 2026-03-13 — Улучшение качества анализа (Подход A)
-
-- Уточнена целевая аудитория в AGENTS.md: сервис для клиентов Гравител (компании с ВАТС), не для собственного колл-центра
-- `text_corrector.py`: добавлены паттерны для обрезанных слов GigaAM (`штри`→`штрих`, `добавочн`→`добавочный`)
-- `profiles/gravitel.yaml`: добавлены термины (`софтфон`), расширен `llm_context` (домены, продукты)
-- `llm_analyzer.py`: `analyze_dialogue()` принимает `llm_context` и добавляет его перед диалогом во все LLM-вызовы
-- `pipeline.py`: передаёт `llm_context` из профиля в `analyze_dialogue()`
-- **Промпты:**
-  - `quality_score.md`: IVR-детекция (`is_ivr: true`), уточнены критерии greeting (перевод звонка), откалибрована шкала (7-8 = норма)
-  - `summarize.md`: добавлены `call_type` и `action_items`
-  - `extract_data.md`: добавлены `operator_name` и `department`
-- 37 тестов (было 34), все проходят
-- Дизайн: `docs/plans/2026-03-13-quality-improvements-design.md`

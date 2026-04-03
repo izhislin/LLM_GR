@@ -89,17 +89,41 @@ async def _sync_directory(domain: str, client: GravitelClient) -> None:
         logger.error("Ошибка синхронизации groups %s: %s", domain, e)
 
 
-async def _poll_domain(domain: str, client: GravitelClient) -> None:
-    """Опросить историю звонков домена и добавить новые в очередь."""
-    from src.db import insert_call, insert_processing, get_call
+async def _poll_domain(
+    domain: str,
+    client: GravitelClient,
+    *,
+    start: str | None = None,
+    end: str | None = None,
+) -> None:
+    """Опросить историю звонков домена и добавить новые / обновить существующие.
+
+    Если звонок уже есть в БД (создан webhook-ом) но без record_url —
+    обновляет его данными из polling и переводит в pending при прохождении фильтров.
+
+    Args:
+        domain: домен компании-клиента.
+        client: HTTP-клиент Gravitel API.
+        start: начало диапазона дат (ISO). Если не задан — используется period='today'.
+        end: конец диапазона дат (ISO). Если не задан — используется period='today'.
+    """
+    from src.db import (
+        insert_call, insert_processing, get_call,
+        update_call_from_polling, reopen_processing,
+    )
     from src.call_filter import filter_call
 
     try:
-        calls = await client.fetch_history(period="today")
+        if start and end:
+            calls = await client.fetch_history(start=start, end=end)
+        else:
+            calls = await client.fetch_history(period="today")
+
         new_count = 0
+        updated_count = 0
         for raw in calls:
             call_id = str(raw.get("id", ""))
-            if not call_id or get_call(_db, call_id):
+            if not call_id:
                 continue
 
             call = {
@@ -119,6 +143,17 @@ async def _poll_domain(domain: str, client: GravitelClient) -> None:
                 "received_at": raw.get("start", ""),
             }
 
+            existing = get_call(_db, call_id)
+            if existing:
+                # Обновить звонок, если record_url ещё пуст (webhook создал без записи)
+                if not existing["record_url"] and call["record_url"]:
+                    update_call_from_polling(_db, call_id, call)
+                    config = _domain_configs[domain]
+                    passed, _reason = filter_call(call, config.filters)
+                    if passed and reopen_processing(_db, call_id):
+                        updated_count += 1
+                continue
+
             insert_call(_db, call)
             config = _domain_configs[domain]
             passed, reason = filter_call(call, config.filters)
@@ -130,8 +165,10 @@ async def _poll_domain(domain: str, client: GravitelClient) -> None:
                 insert_processing(_db, call["id"], status="skipped", skip_reason=reason)
 
         update_domain_poll_time(_db, domain)
-        if new_count:
-            logger.info("Polling %s: %d новых звонков", domain, new_count)
+        if new_count or updated_count:
+            logger.info(
+                "Polling %s: %d новых, %d обновлено", domain, new_count, updated_count
+            )
     except Exception as e:
         logger.error("Polling ошибка %s: %s", domain, e)
 
@@ -152,8 +189,12 @@ async def _scheduler_loop():
             if stale:
                 logger.info("Сброшено %d зависших записей", stale)
 
+            # Обрабатывать пачками пока есть pending, без 10-мин паузы между ними
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(_executor, _worker.process_pending)
+            while True:
+                processed = await loop.run_in_executor(_executor, _worker.process_pending)
+                if not processed:
+                    break
 
             sync_counter += 1
             if sync_counter >= 6:
@@ -212,6 +253,22 @@ async def lifespan(app: FastAPI):
 
     for domain, client in _api_clients.items():
         await _sync_directory(domain, client)
+
+    # Одноразовый бэкфилл: обновить звонки за последние 7 дней,
+    # чтобы подтянуть record_url для webhook-звонков, пропущенных ранее.
+    async def _backfill():
+        from datetime import datetime, timedelta, timezone
+        today = datetime.now(timezone.utc).date()
+        for days_ago in range(7, 0, -1):
+            day = today - timedelta(days=days_ago)
+            start = day.isoformat()
+            end = (day + timedelta(days=1)).isoformat()
+            for domain, client in _api_clients.items():
+                if _domain_configs[domain].enabled:
+                    await _poll_domain(domain, client, start=start, end=end)
+        logger.info("Бэкфилл завершён: 7 дней обновлено")
+
+    asyncio.create_task(_backfill())
 
     _scheduler_task = asyncio.create_task(_scheduler_loop())
     logger.info("AI Lab Web запущен. Доменов: %d", len(_domain_configs))
