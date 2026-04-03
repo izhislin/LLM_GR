@@ -31,13 +31,23 @@
 
 | Модуль | Назначение |
 |--------|-----------|
-| `src/llm_analyzer.py` | HTTP-клиент к Ollama (Qwen3-8B, 32k контекст, keep_alive=30m) |
-| `src/pipeline.py` | Оркестратор: split → transcribe → dialogue → correct → LLM × 3 |
+| `src/llm_analyzer.py` | HTTP-клиент к Ollama (Qwen3-8B) + OpenRouter (MiMo-V2-Pro). `call_llm()` / `call_cloud_llm()` |
+| `src/pipeline.py` | Оркестратор: split → transcribe → dialogue → correct → metrics → LLM × 4 |
 
-Три отдельных LLM-вызова (промпты в `prompts/`):
+Четыре LLM-вызова (промпты в `prompts/`):
 - `summarize.md` → тип, тема, исход, ключевые моменты, действия
-- `quality_score.md` → оценка 1–10, критерии, IVR-детекция
+- `quality_score.md` → оценка 1–10, критерии, IVR-детекция, script_checklist
 - `extract_data.md` → имена, отдел, договор, телефон, договорённости
+- `classify.md` → category, subcategory, client_intent, sentiment, resolution_status, tags
+
+### Аналитика
+
+| Модуль | Назначение |
+|--------|-----------|
+| `src/analytics/conversation_metrics.py` | Talk/silence/interruptions из таймкодов (без LLM) |
+| `src/analytics/client_profiles.py` | Профили клиентов, risk_level, sentiment_trend |
+| `src/analytics/search.py` | FTS5 полнотекстовый поиск по транскриптам |
+| `src/analytics/knowledge.py` | Batch-агрегация базы знаний (проблемы → решения) |
 
 ### Веб-интерфейс
 
@@ -46,6 +56,7 @@
 | `src/web/app.py` | FastAPI: lifespan, Basic Auth middleware, шаблоны, фоновый scheduler |
 | `src/web/routes/api.py` | REST API: список звонков (фильтры, сортировка, пагинация), детали, аудио |
 | `src/web/routes/webhook.py` | Приём webhook от Гравител АТС |
+| `src/web/routes/dashboard.py` | API + HTML-страницы дашбордов (business, supervisor) |
 | `src/web/static/app.js` | Клиентский JS: таблица, фильтры, аудиоплеер с синхронизацией транскрипта |
 | `src/web/static/style.css` | Стили |
 

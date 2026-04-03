@@ -9,6 +9,25 @@
 
 ## Записи
 
+### 2026-04-03 — Аналитическая платформа речевой аналитики
+
+- **Цель:** Превратить pipeline транскрибации в аналитическую платформу с бизнес-инсайтами, базой знаний для голосовых роботов, и дашбордами.
+- **Conversation metrics:** Новый модуль `src/analytics/conversation_metrics.py` — talk/silence/interruptions из таймкодов сегментов (без LLM, чистая арифметика). Интегрирован в `pipeline.py`.
+- **Классификация (4-й LLM-вызов):** Промпт `classify.md` — category, subcategory, client_intent (8 интентов), sentiment, resolution_status, is_repeat_contact, tags. Добавлен в `analyze_dialogue()`.
+- **Script checklist:** Расширен промпт `quality_score.md` — 7 boolean-полей соблюдения скрипта (приветствие, идентификация, решение, прощание).
+- **Новые таблицы БД:** `client_profiles` (профили клиентов, risk_level), `knowledge_base` (агрегированные проблемы→решения), `knowledge_scenarios` (эталонные сценарии для роботов), `calls_fts` (FTS5 полнотекстовый поиск).
+- **Client profiles:** `src/analytics/client_profiles.py` — инкрементальное обновление при обработке звонка + batch-пересчёт risk_level/sentiment_trend.
+- **FTS5 поиск:** `src/analytics/search.py` — индексация и поиск по транскриптам, темам, проблемам.
+- **Knowledge base:** `src/analytics/knowledge.py` — batch-агрегация проблем и решений по категориям.
+- **Dashboard API:** `src/web/routes/dashboard.py` — 8 эндпоинтов: business KPIs, categories, sentiment, risk-clients, operator ratings, script-checklist, search, HTML-страницы.
+- **Dashboard UI:** Два HTML-дашборда в стиле Гравител (шрифт Onest, indigo/teal палитра, Chart.js): обзор бизнеса + контроль операторов.
+- **Гибридный LLM:** Ollama/Qwen3-8B (realtime, per-call) + OpenRouter/MiMo-V2-Pro (batch-аналитика). `call_cloud_llm()` в `llm_analyzer.py`.
+- **Worker интеграция:** `index_call()` + `update_profile_on_call()` вызываются автоматически после обработки звонка.
+- **Backfill:** `scripts/backfill_analytics.py` — ретроспективная классификация + FTS + metrics + profiles для 1703 существующих звонков (~37 мин на GPU).
+- **Тесты:** 209 passed (+30 новых: conversation_metrics ×7, db_analytics ×8, client_profiles ×5, search ×5, knowledge ×4, dashboard API ×8, llm_analyzer ×4).
+- **Спецификация:** `docs/superpowers/specs/2026-04-03-call-analytics-platform-design.md`.
+- **План:** `docs/superpowers/plans/2026-04-03-call-analytics-platform.md`.
+
 ### 2026-03-31 — Исправление конфликта webhook/polling + ускорение очереди
 
 - **Проблема:** С 27 марта pipeline не обрабатывал новые звонки. Все 553 звонка получали `skipped: no record`. Причина: после фикса webhook 26 марта звонки стали приходить сначала через webhook (с пустым `record_url`), а polling при обнаружении уже существующего ID пропускал обновление (`get_call() → continue`).
