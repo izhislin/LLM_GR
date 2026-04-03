@@ -1,5 +1,6 @@
 """Конфигурация пайплайна."""
 
+import os
 from pathlib import Path
 
 # Корень проекта
@@ -28,6 +29,12 @@ OLLAMA_KEEP_ALIVE = "30m"  # держать модель в VRAM (default 5m)
 # Аудио
 SAMPLE_RATE = 16000  # GigaAM ожидает 16kHz
 VAD_NEW_CHUNK_THRESHOLD = 0.05  # мин. длительность сегмента (снижено с 0.2 для коротких фраз)
+
+# OpenRouter (облачный LLM для batch-аналитики)
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "xiaomi/mimo-v2-pro")
+OPENROUTER_TIMEOUT = 120  # секунд
 
 # Prometheus
 METRICS_PORT = 8000

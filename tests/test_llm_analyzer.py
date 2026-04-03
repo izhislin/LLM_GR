@@ -1,11 +1,11 @@
-"""Тесты для llm_analyzer (с моками Ollama API)."""
+"""Тесты для llm_analyzer (с моками Ollama и OpenRouter API)."""
 
 import json
 import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from src.llm_analyzer import call_llm, analyze_dialogue, load_prompt
+from src.llm_analyzer import call_llm, call_cloud_llm, analyze_dialogue, load_prompt
 
 
 @pytest.fixture
@@ -158,3 +158,65 @@ def test_analyze_dialogue_without_context(mock_post, tmp_path):
     user_msg = first_call_payload["messages"][1]["content"]
     assert user_msg == dialogue
     assert "Контекст:" not in user_msg
+
+
+# ── Тесты для call_cloud_llm (OpenRouter) ─────────────────────────────────
+
+
+@patch("src.llm_analyzer.OPENROUTER_API_KEY", "test-key-123")
+@patch("src.llm_analyzer.requests.post")
+def test_call_cloud_llm_returns_parsed_json(mock_post):
+    """call_cloud_llm должен вернуть распарсенный JSON из ответа OpenRouter."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": '{"result": "ok"}'}}],
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50},
+    }
+    mock_response.raise_for_status = MagicMock()
+    mock_post.return_value = mock_response
+
+    result = call_cloud_llm(
+        system_prompt="Ты аналитик.",
+        user_message="Обобщи тренды.",
+    )
+
+    assert result["result"] == "ok"
+    # Проверяем что отправлен правильный формат OpenAI
+    payload = mock_post.call_args[1]["json"]
+    assert "choices" not in payload  # это payload запроса, не ответа
+    assert payload["messages"][0]["role"] == "system"
+    assert payload["response_format"] == {"type": "json_object"}
+    # Проверяем заголовок авторизации
+    headers = mock_post.call_args[1]["headers"]
+    assert headers["Authorization"] == "Bearer test-key-123"
+
+
+@patch("src.llm_analyzer.OPENROUTER_API_KEY", "")
+def test_call_cloud_llm_raises_without_api_key():
+    """call_cloud_llm должен выбросить RuntimeError без API-ключа."""
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY не задан"):
+        call_cloud_llm(system_prompt="Тест.", user_message="Текст.")
+
+
+@patch("src.llm_analyzer.OPENROUTER_API_KEY", "test-key-123")
+@patch("src.llm_analyzer.requests.post")
+def test_call_cloud_llm_retries_on_invalid_json(mock_post):
+    """При невалидном JSON должен быть повторный вызов."""
+    bad_response = MagicMock()
+    bad_response.json.return_value = {
+        "choices": [{"message": {"content": "не json"}}],
+    }
+    bad_response.raise_for_status = MagicMock()
+
+    good_response = MagicMock()
+    good_response.json.return_value = {
+        "choices": [{"message": {"content": '{"ok": true}'}}],
+        "usage": {},
+    }
+    good_response.raise_for_status = MagicMock()
+
+    mock_post.side_effect = [bad_response, good_response]
+
+    result = call_cloud_llm(system_prompt="Тест.", user_message="Текст.")
+    assert result["ok"] is True
+    assert mock_post.call_count == 2

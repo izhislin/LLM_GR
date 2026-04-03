@@ -1,4 +1,4 @@
-"""Клиент для Ollama API — отправка диалога на LLM-анализ."""
+"""Клиент для LLM API — Ollama (локальный) и OpenRouter (облачный)."""
 
 import json
 import logging
@@ -6,7 +6,10 @@ from pathlib import Path
 
 import requests
 
-from src.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_NUM_CTX, OLLAMA_KEEP_ALIVE
+from src.config import (
+    OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_NUM_CTX, OLLAMA_KEEP_ALIVE,
+    OPENROUTER_API_KEY, OPENROUTER_URL, OPENROUTER_MODEL, OPENROUTER_TIMEOUT,
+)
 from src.metrics import PROMETHEUS_AVAILABLE
 
 if PROMETHEUS_AVAILABLE:
@@ -100,6 +103,75 @@ def call_llm(
 
     raise RuntimeError(
         f"Не удалось получить валидный JSON от LLM после {MAX_RETRIES} попыток"
+    )
+
+
+def call_cloud_llm(
+    system_prompt: str,
+    user_message: str,
+) -> dict:
+    """Отправить запрос в облачный LLM (OpenRouter) и получить JSON-ответ.
+
+    Используется для batch-аналитики: генерация сценариев, обобщение трендов.
+    Формат OpenAI-совместимый.
+
+    Args:
+        system_prompt: Системный промпт.
+        user_message: Пользовательское сообщение.
+
+    Returns:
+        Распарсенный JSON-словарь.
+
+    Raises:
+        RuntimeError: Если API-ключ не задан или не удалось получить ответ.
+    """
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError(
+            "OPENROUTER_API_KEY не задан. Установите в .env для использования облачного LLM."
+        )
+
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+    }
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        logger.info("OpenRouter вызов (попытка %d/%d, модель %s)...", attempt, MAX_RETRIES, OPENROUTER_MODEL)
+
+        resp = requests.post(
+            OPENROUTER_URL, json=payload, headers=headers, timeout=OPENROUTER_TIMEOUT,
+        )
+        resp.raise_for_status()
+
+        response_data = resp.json()
+        content = response_data["choices"][0]["message"]["content"]
+
+        try:
+            parsed = json.loads(content)
+            usage = response_data.get("usage", {})
+            logger.info(
+                "OpenRouter: %d prompt + %d completion tokens",
+                usage.get("prompt_tokens", 0),
+                usage.get("completion_tokens", 0),
+            )
+            return parsed
+        except json.JSONDecodeError:
+            logger.warning(
+                "Попытка %d: невалидный JSON от OpenRouter: %s", attempt, content[:200]
+            )
+
+    raise RuntimeError(
+        f"Не удалось получить валидный JSON от OpenRouter после {MAX_RETRIES} попыток"
     )
 
 
