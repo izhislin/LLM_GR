@@ -66,9 +66,63 @@ CREATE TABLE IF NOT EXISTS departments (
     PRIMARY KEY (domain, id)
 );
 
+CREATE TABLE IF NOT EXISTS client_profiles (
+    client_number    TEXT PRIMARY KEY,
+    domain           TEXT NOT NULL,
+    first_seen       TEXT,
+    last_seen        TEXT,
+    total_calls      INTEGER DEFAULT 0,
+    calls_with_issues INTEGER DEFAULT 0,
+    primary_category TEXT,
+    sentiment_trend  TEXT,
+    risk_level       TEXT DEFAULT 'low',
+    extracted_name   TEXT,
+    extracted_contract TEXT,
+    updated_at       TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS knowledge_base (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain              TEXT NOT NULL,
+    category            TEXT NOT NULL,
+    subcategory         TEXT,
+    problem_description TEXT NOT NULL,
+    solution_description TEXT,
+    frequency           INTEGER DEFAULT 1,
+    success_rate        REAL,
+    example_call_ids    TEXT,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS knowledge_scenarios (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain              TEXT NOT NULL,
+    category            TEXT NOT NULL,
+    scenario_name       TEXT NOT NULL,
+    typical_questions   TEXT,
+    recommended_script  TEXT,
+    diagnostic_steps    TEXT,
+    source_call_ids     TEXT,
+    success_rate        REAL,
+    auto_generated      INTEGER DEFAULT 1,
+    approved            INTEGER DEFAULT 0,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS calls_fts USING fts5(
+    call_id UNINDEXED,
+    transcript,
+    topic,
+    issues
+);
+
 CREATE INDEX IF NOT EXISTS idx_calls_domain ON calls(domain);
 CREATE INDEX IF NOT EXISTS idx_calls_started ON calls(started_at);
 CREATE INDEX IF NOT EXISTS idx_processing_status ON processing(status);
+CREATE INDEX IF NOT EXISTS idx_client_profiles_domain ON client_profiles(domain);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_category ON knowledge_base(domain, category);
 """
 
 
