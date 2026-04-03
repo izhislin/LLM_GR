@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Обзор бизнеса{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+.dash { font-family: 'Onest', sans-serif; padding: 24px 0; }
+.dash h1 { font-size: 1.5rem; font-weight: 700; color: #18181B; margin-bottom: 4px; }
+.dash-subtitle { color: #9999A8; font-size: 0.9rem; margin-bottom: 24px; }
+.dash-filters { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+.dash-filters input, .dash-filters select { font-family: inherit; padding: 8px 12px; border: 1px solid #C7D2FE; border-radius: 8px; font-size: 0.85rem; background: #fff; }
+.dash-filters input:focus, .dash-filters select:focus { outline: none; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+.dbtn { font-family: inherit; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
+.dbtn-primary { background: #4F46E5; color: #fff; }
+.dbtn-primary:hover { background: #4338CA; }
+.dbtn-preset { background: #F6F6FC; color: #52525B; border: 1px solid #E0E7FF; padding: 6px 12px; font-size: 0.8rem; }
+.dbtn-preset:hover, .dbtn-preset.active { background: #4F46E5; color: #fff; border-color: #4F46E5; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #F0F0F5; }
+.kpi-label { font-size: 0.8rem; color: #9999A8; font-weight: 500; margin-bottom: 4px; }
+.kpi-value { font-size: 1.8rem; font-weight: 700; color: #18181B; }
+.kpi-sub { font-size: 0.8rem; color: #9999A8; margin-top: 2px; }
+.kpi-card.accent { border-left: 4px solid #10D5D7; }
+.kpi-card.warn { border-left: 4px solid #F59E0B; }
+.kpi-card.danger { border-left: 4px solid #EF4444; }
+
+.charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+.chart-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #F0F0F5; }
+.chart-card h3 { font-size: 0.95rem; font-weight: 600; color: #18181B; margin-bottom: 16px; }
+
+.risk-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.risk-table th { text-align: left; padding: 8px 12px; color: #9999A8; font-weight: 500; font-size: 0.8rem; border-bottom: 1px solid #F0F0F5; }
+.risk-table td { padding: 8px 12px; border-bottom: 1px solid #F0F0F5; }
+.risk-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.risk-high { background: #FEE2E2; color: #DC2626; }
+.risk-medium { background: #FEF3C7; color: #D97706; }
+
+.search-box { position: relative; margin-bottom: 24px; }
+.search-box input { width: 100%; padding: 10px 16px; border: 1px solid #C7D2FE; border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: #fff; }
+.search-box input:focus { outline: none; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+.search-results { margin-top: 8px; font-size: 0.85rem; }
+.search-results a { color: #4F46E5; text-decoration: none; }
+.search-results a:hover { text-decoration: underline; }
+
+@media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+</style>
+
+<div class="dash">
+    <h1>Обзор бизнеса</h1>
+    <div class="dash-subtitle">Аналитика звонков &mdash; домен {{ domain }}</div>
+
+    <div class="dash-filters">
+        <input type="date" id="df-from">
+        <span style="color:#9999A8">&mdash;</span>
+        <input type="date" id="df-to">
+        <div style="display:flex;gap:4px">
+            <button class="dbtn dbtn-preset" onclick="setPreset('today')">Сегодня</button>
+            <button class="dbtn dbtn-preset" onclick="setPreset('week')">Неделя</button>
+            <button class="dbtn dbtn-preset" onclick="setPreset('month')">Месяц</button>
+            <button class="dbtn dbtn-preset" onclick="setPreset('all')">Все</button>
+        </div>
+        <button class="dbtn dbtn-primary" onclick="loadDashboard()">Обновить</button>
+    </div>
+
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Топ категорий обращений</h3>
+            <canvas id="chart-categories" height="260"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Настроение клиентов</h3>
+            <canvas id="chart-sentiment" height="260"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px">
+        <h3>Клиенты в зоне риска</h3>
+        <table class="risk-table" id="risk-table">
+            <thead><tr><th>Клиент</th><th>Телефон</th><th>Звонков</th><th>Категория</th><th>Тренд</th><th>Риск</th></tr></thead>
+            <tbody id="risk-tbody"></tbody>
+        </table>
+        <div id="risk-empty" style="display:none;text-align:center;padding:20px;color:#9999A8">Нет клиентов в зоне риска</div>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="Поиск по звонкам (фразы в кавычках)..." onkeydown="if(event.key==='Enter')doSearch()">
+    </div>
+    <div class="search-results" id="search-results"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+const DOMAIN = '{{ domain }}';
+let catChart, sentChart;
+const TREND_TEXT = {declining: '\u25BC ухудшается', stable: '\u2192 стабильно', improving: '\u25B2 улучшается'};
+
+function getFilters() {
+    const f = document.getElementById('df-from').value;
+    const t = document.getElementById('df-to').value;
+    const p = new URLSearchParams({domain: DOMAIN});
+    if (f) p.set('date_from', f + 'T00:00:00Z');
+    if (t) p.set('date_to', t + 'T23:59:59Z');
+    return p.toString();
+}
+
+function setPreset(p) {
+    const today = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    document.querySelectorAll('.dbtn-preset').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    if (p === 'today') { document.getElementById('df-from').value = fmt(today); document.getElementById('df-to').value = fmt(today); }
+    else if (p === 'week') { const w = new Date(today); w.setDate(w.getDate()-7); document.getElementById('df-from').value = fmt(w); document.getElementById('df-to').value = fmt(today); }
+    else if (p === 'month') { const m = new Date(today); m.setDate(m.getDate()-30); document.getElementById('df-from').value = fmt(m); document.getElementById('df-to').value = fmt(today); }
+    else { document.getElementById('df-from').value = ''; document.getElementById('df-to').value = ''; }
+    loadDashboard();
+}
+
+function el(tag, attrs, children) {
+    const e = document.createElement(tag);
+    if (attrs) Object.entries(attrs).forEach(([k,v]) => { if (k === 'className') e.className = v; else if (k === 'style') Object.assign(e.style, v); else e.setAttribute(k, v); });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(c => { if (c) e.appendChild(c); });
+    return e;
+}
+
+async function loadDashboard() {
+    const q = getFilters();
+    const [kpis, cats, sent, risk] = await Promise.all([
+        fetch('/api/dashboard/business/kpis?' + q).then(r => r.json()),
+        fetch('/api/dashboard/business/categories?' + q).then(r => r.json()),
+        fetch('/api/dashboard/business/sentiment?' + q).then(r => r.json()),
+        fetch('/api/dashboard/business/risk-clients?domain=' + DOMAIN).then(r => r.json()),
+    ]);
+    renderKpis(kpis);
+    renderCategories(cats);
+    renderSentiment(sent);
+    renderRisk(risk);
+}
+
+function makeKpiCard(label, value, sub, cls) {
+    const card = el('div', {className: 'kpi-card' + (cls ? ' ' + cls : '')});
+    card.appendChild(el('div', {className: 'kpi-label'}, label));
+    card.appendChild(el('div', {className: 'kpi-value'}, String(value)));
+    if (sub) card.appendChild(el('div', {className: 'kpi-sub'}, sub));
+    return card;
+}
+
+function renderKpis(d) {
+    const row = document.getElementById('kpi-row');
+    row.replaceChildren(
+        makeKpiCard('Обработано звонков', d.total_calls, null, 'accent'),
+        makeKpiCard('Среднее качество', d.avg_quality + '/10', null, ''),
+        makeKpiCard('Пропущенные', d.missed_count, d.missed_pct + '% от всех', 'warn'),
+        makeKpiCard('Повторные', d.repeat_pct + '%', null, ''),
+        makeKpiCard('Клиенты в зоне риска', d.risk_clients, null, d.risk_clients > 0 ? 'danger' : ''),
+    );
+}
+
+function renderCategories(data) {
+    const ctx = document.getElementById('chart-categories');
+    if (catChart) catChart.destroy();
+    const colors = ['#4F46E5','#10D5D7','#818CF8','#06C0C2','#A5B4FC','#8FFCFC','#C7D2FE'];
+    catChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: data.map(d => d.category), datasets: [{ data: data.map(d => d.count), backgroundColor: colors.slice(0, data.length), borderRadius: 6 }] },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
+    });
+}
+
+function renderSentiment(d) {
+    const ctx = document.getElementById('chart-sentiment');
+    if (sentChart) sentChart.destroy();
+    sentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: ['Позитивный','Нейтральный','Негативный'], datasets: [{ data: [d.positive, d.neutral, d.negative], backgroundColor: ['#10D5D7','#A5B4FC','#EF4444'], borderWidth: 0, hoverOffset: 6 }] },
+        options: { cutout: '60%', plugins: { legend: { position: 'bottom', labels: { font: { family: 'Onest' }, padding: 16 } } } }
+    });
+}
+
+function renderRisk(data) {
+    const tbody = document.getElementById('risk-tbody');
+    const empty = document.getElementById('risk-empty');
+    tbody.replaceChildren();
+    if (!data.length) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    data.forEach(r => {
+        const tr = el('tr', null, [
+            el('td', {style: {fontWeight: '500'}}, r.extracted_name || '\u2014'),
+            el('td', null, r.client_number || ''),
+            el('td', null, String(r.total_calls)),
+            el('td', null, r.primary_category || '\u2014'),
+            el('td', null, TREND_TEXT[r.sentiment_trend] || '\u2014'),
+            el('td', null, [el('span', {className: 'risk-badge risk-' + r.risk_level}, r.risk_level)]),
+        ]);
+        tbody.appendChild(tr);
+    });
+}
+
+async function doSearch() {
+    const q = document.getElementById('search-input').value.trim();
+    if (!q) return;
+    const res = await fetch('/api/dashboard/search?q=' + encodeURIComponent(q)).then(r => r.json());
+    const container = document.getElementById('search-results');
+    container.replaceChildren();
+    if (!res.length) { container.appendChild(el('span', {style: {color: '#9999A8'}}, 'Ничего не найдено')); return; }
+    res.forEach(r => {
+        const div = document.createElement('div');
+        div.style.marginBottom = '4px';
+        const a = document.createElement('a');
+        a.href = '/call/' + encodeURIComponent(r.call_id);
+        a.textContent = r.call_id;
+        div.appendChild(a);
+        container.appendChild(div);
+    });
+}
+
+loadDashboard();
+</script>
+{% endblock %}

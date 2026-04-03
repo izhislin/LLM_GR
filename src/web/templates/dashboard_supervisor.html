@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Контроль операторов{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+.dash { font-family: 'Onest', sans-serif; padding: 24px 0; }
+.dash h1 { font-size: 1.5rem; font-weight: 700; color: #18181B; margin-bottom: 4px; }
+.dash-subtitle { color: #9999A8; font-size: 0.9rem; margin-bottom: 24px; }
+.dash-filters { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+.dash-filters input { font-family: inherit; padding: 8px 12px; border: 1px solid #C7D2FE; border-radius: 8px; font-size: 0.85rem; background: #fff; }
+.dash-filters input:focus { outline: none; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+.dbtn { font-family: inherit; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
+.dbtn-primary { background: #4F46E5; color: #fff; }
+.dbtn-primary:hover { background: #4338CA; }
+.dbtn-preset { background: #F6F6FC; color: #52525B; border: 1px solid #E0E7FF; padding: 6px 12px; font-size: 0.8rem; }
+.dbtn-preset:hover, .dbtn-preset.active { background: #4F46E5; color: #fff; border-color: #4F46E5; }
+
+.chart-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #F0F0F5; margin-bottom: 24px; }
+.chart-card h3 { font-size: 0.95rem; font-weight: 600; color: #18181B; margin-bottom: 16px; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+.op-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.op-table th { text-align: left; padding: 10px 12px; color: #9999A8; font-weight: 500; font-size: 0.8rem; border-bottom: 2px solid #F0F0F5; }
+.op-table td { padding: 10px 12px; border-bottom: 1px solid #F0F0F5; }
+.op-table tr:hover { background: #FAFAFE; }
+.op-name { font-weight: 600; color: #18181B; }
+.op-ext { color: #9999A8; font-size: 0.8rem; margin-left: 4px; }
+.score-pill { display: inline-block; padding: 2px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; }
+.score-good { background: #D1FAE5; color: #065F46; }
+.score-ok { background: #FEF3C7; color: #92400E; }
+.score-bad { background: #FEE2E2; color: #991B1B; }
+
+/* Checklist heatmap */
+.cl-grid { display: grid; gap: 1px; font-size: 0.75rem; }
+.cl-header { display: contents; font-weight: 600; color: #52525B; }
+.cl-row { display: contents; }
+.cl-cell { padding: 6px 8px; text-align: center; border-radius: 4px; }
+.cl-name { text-align: left; padding: 6px 8px; font-weight: 500; color: #18181B; white-space: nowrap; }
+
+@media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } }
+</style>
+
+<div class="dash">
+    <h1>Контроль операторов</h1>
+    <div class="dash-subtitle">Качество обслуживания &mdash; домен {{ domain }}</div>
+
+    <div class="dash-filters">
+        <input type="date" id="df-from">
+        <span style="color:#9999A8">&mdash;</span>
+        <input type="date" id="df-to">
+        <div style="display:flex;gap:4px">
+            <button class="dbtn dbtn-preset" onclick="setPreset('week')">Неделя</button>
+            <button class="dbtn dbtn-preset" onclick="setPreset('month')">Месяц</button>
+            <button class="dbtn dbtn-preset" onclick="setPreset('all')">Все</button>
+        </div>
+        <button class="dbtn dbtn-primary" onclick="loadDashboard()">Обновить</button>
+    </div>
+
+    <div class="chart-card">
+        <h3>Рейтинг операторов</h3>
+        <table class="op-table">
+            <thead><tr><th>Оператор</th><th>Звонков</th><th>Ср. оценка</th><th>Talk ratio</th></tr></thead>
+            <tbody id="op-tbody"></tbody>
+        </table>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-card">
+            <h3>Нагрузка по операторам</h3>
+            <canvas id="chart-load" height="300"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Средняя оценка по операторам</h3>
+            <canvas id="chart-scores" height="300"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h3>Чеклист скрипта по операторам (%)</h3>
+        <div id="checklist-heatmap"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+const DOMAIN = '{{ domain }}';
+let loadChart, scoreChart;
+const CL_LABELS = {
+    greeted_with_name: 'Имя', greeted_with_company: 'Компания',
+    identified_client: 'ID клиента', clarified_issue: 'Уточнил вопрос',
+    offered_solution: 'Решение', summarized_outcome: 'Итог', said_goodbye: 'Прощание'
+};
+
+function getFilters() {
+    const f = document.getElementById('df-from').value;
+    const t = document.getElementById('df-to').value;
+    const p = new URLSearchParams({domain: DOMAIN});
+    if (f) p.set('date_from', f + 'T00:00:00Z');
+    if (t) p.set('date_to', t + 'T23:59:59Z');
+    return p.toString();
+}
+
+function setPreset(p) {
+    const today = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    document.querySelectorAll('.dbtn-preset').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    if (p === 'week') { const w = new Date(today); w.setDate(w.getDate()-7); document.getElementById('df-from').value = fmt(w); document.getElementById('df-to').value = fmt(today); }
+    else if (p === 'month') { const m = new Date(today); m.setDate(m.getDate()-30); document.getElementById('df-from').value = fmt(m); document.getElementById('df-to').value = fmt(today); }
+    else { document.getElementById('df-from').value = ''; document.getElementById('df-to').value = ''; }
+    loadDashboard();
+}
+
+function el(tag, attrs, text) {
+    const e = document.createElement(tag);
+    if (attrs) Object.entries(attrs).forEach(([k,v]) => { if (k === 'className') e.className = v; else e.setAttribute(k, v); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+}
+
+function scorePillClass(s) { return s >= 7 ? 'score-good' : s >= 5 ? 'score-ok' : 'score-bad'; }
+
+async function loadDashboard() {
+    const q = getFilters();
+    const [ops, cl] = await Promise.all([
+        fetch('/api/dashboard/supervisor/operators?' + q).then(r => r.json()),
+        fetch('/api/dashboard/supervisor/script-checklist?' + q).then(r => r.json()),
+    ]);
+    renderOperators(ops);
+    renderCharts(ops);
+    renderChecklist(cl);
+}
+
+function renderOperators(data) {
+    const tbody = document.getElementById('op-tbody');
+    tbody.replaceChildren();
+    data.forEach(op => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        const nameSpan = el('span', {className: 'op-name'}, op.name);
+        const extSpan = el('span', {className: 'op-ext'}, '(' + op.extension + ')');
+        tdName.appendChild(nameSpan);
+        tdName.appendChild(extSpan);
+        tr.appendChild(tdName);
+        tr.appendChild(el('td', null, String(op.call_count)));
+        const tdScore = document.createElement('td');
+        if (op.avg_score !== null) {
+            tdScore.appendChild(el('span', {className: 'score-pill ' + scorePillClass(op.avg_score)}, String(op.avg_score)));
+        } else {
+            tdScore.textContent = '\u2014';
+        }
+        tr.appendChild(tdScore);
+        tr.appendChild(el('td', null, op.avg_talk_ratio !== null ? Math.round(op.avg_talk_ratio * 100) + '%' : '\u2014'));
+        tbody.appendChild(tr);
+    });
+}
+
+function renderCharts(data) {
+    const names = data.map(d => d.name);
+    const counts = data.map(d => d.call_count);
+    const scores = data.map(d => d.avg_score || 0);
+
+    if (loadChart) loadChart.destroy();
+    loadChart = new Chart(document.getElementById('chart-load'), {
+        type: 'bar',
+        data: { labels: names, datasets: [{ data: counts, backgroundColor: '#10D5D7', borderRadius: 6 }] },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
+    });
+
+    if (scoreChart) scoreChart.destroy();
+    scoreChart = new Chart(document.getElementById('chart-scores'), {
+        type: 'bar',
+        data: { labels: names, datasets: [{ data: scores, backgroundColor: scores.map(s => s >= 7 ? '#10D5D7' : s >= 5 ? '#F59E0B' : '#EF4444'), borderRadius: 6 }] },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { min: 0, max: 10, grid: { display: false } } } }
+    });
+}
+
+function heatColor(pct) {
+    if (pct >= 80) return '#D1FAE5';
+    if (pct >= 50) return '#FEF3C7';
+    return '#FEE2E2';
+}
+
+function renderChecklist(data) {
+    const container = document.getElementById('checklist-heatmap');
+    container.replaceChildren();
+    const operators = Object.keys(data);
+    if (!operators.length) { container.textContent = 'Нет данных'; return; }
+    const fields = Object.keys(CL_LABELS);
+    const cols = fields.length + 1;
+    const grid = document.createElement('div');
+    grid.className = 'cl-grid';
+    grid.style.gridTemplateColumns = '160px ' + 'repeat(' + fields.length + ', 1fr)';
+
+    // Header row
+    grid.appendChild(el('div', {className: 'cl-cell'}, ''));
+    fields.forEach(f => grid.appendChild(el('div', {className: 'cl-cell', style: 'font-weight:600;color:#52525B;font-size:0.75rem'}, CL_LABELS[f])));
+
+    // Data rows
+    operators.forEach(op => {
+        grid.appendChild(el('div', {className: 'cl-name'}, op));
+        fields.forEach(f => {
+            const pct = data[op][f] || 0;
+            const cell = el('div', {className: 'cl-cell'}, pct + '%');
+            cell.style.backgroundColor = heatColor(pct);
+            grid.appendChild(cell);
+        });
+    });
+
+    container.appendChild(grid);
+}
+
+loadDashboard();
+</script>
+{% endblock %}
