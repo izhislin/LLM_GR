@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.analytics.conversation_metrics import compute_metrics
 from src.audio_splitter import split_stereo_to_mono, get_audio_info
 from src.transcriber import transcribe_channel
 from src.dialogue_builder import build_dialogue, dialogue_to_text
@@ -88,6 +89,9 @@ def process_audio_file(
         for t in dialogue
     ]
 
+    # 4.6. Conversation metrics (из таймкодов, без LLM)
+    conversation_metrics = compute_metrics(transcript_segments)
+
     # Сохраняем транскрипт (уже после коррекции)
     transcript_file = transcripts_dir / f"{audio_path.stem}.txt"
     transcript_file.write_text(dialogue_text, encoding="utf-8")
@@ -114,6 +118,7 @@ def process_audio_file(
         "duration_sec": info["duration_sec"],
         "transcript": dialogue_text,
         "transcript_segments": transcript_segments,
+        "conversation_metrics": conversation_metrics,
         **analysis,
     }
 
