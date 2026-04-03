@@ -247,12 +247,12 @@ def dashboard_search(q: str, limit: int = Query(50, ge=1, le=200)):
 
 
 @router.get("/business", response_class=HTMLResponse)
-def business_dashboard_page(request: Request, domain: str = "gravitel.ru"):
+def business_dashboard_page(request: Request, domain: str = "gravitel.aicall.ru"):
     templates = Jinja2Templates(directory=str(_templates_dir))
     return templates.TemplateResponse("dashboard_business.html", {"request": request, "domain": domain})
 
 
 @router.get("/supervisor", response_class=HTMLResponse)
-def supervisor_dashboard_page(request: Request, domain: str = "gravitel.ru"):
+def supervisor_dashboard_page(request: Request, domain: str = "gravitel.aicall.ru"):
     templates = Jinja2Templates(directory=str(_templates_dir))
     return templates.TemplateResponse("dashboard_supervisor.html", {"request": request, "domain": domain})
