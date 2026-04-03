@@ -113,7 +113,7 @@ def test_analyze_dialogue_passes_llm_context(mock_post, tmp_path):
     # Создаём промпт-файлы
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
-    for name in ["summarize.md", "quality_score.md", "extract_data.md"]:
+    for name in ["summarize.md", "quality_score.md", "extract_data.md", "classify.md"]:
         (prompts_dir / name).write_text("Анализируй.")
 
     mock_response = MagicMock()
@@ -141,7 +141,7 @@ def test_analyze_dialogue_without_context(mock_post, tmp_path):
     """Без llm_context диалог передаётся как есть."""
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
-    for name in ["summarize.md", "quality_score.md", "extract_data.md"]:
+    for name in ["summarize.md", "quality_score.md", "extract_data.md", "classify.md"]:
         (prompts_dir / name).write_text("Анализируй.")
 
     mock_response = MagicMock()
@@ -158,6 +158,37 @@ def test_analyze_dialogue_without_context(mock_post, tmp_path):
     user_msg = first_call_payload["messages"][1]["content"]
     assert user_msg == dialogue
     assert "Контекст:" not in user_msg
+
+
+@patch("src.llm_analyzer.requests.post")
+def test_analyze_dialogue_includes_classification(mock_post, sample_dialogue_text, tmp_path):
+    """analyze_dialogue должен включать classification в результат (4 LLM-вызова)."""
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    for name in ["summarize.md", "quality_score.md", "extract_data.md", "classify.md"]:
+        (prompts_dir / name).write_text("Анализируй.")
+
+    def make_response(content_dict):
+        resp = MagicMock()
+        resp.json.return_value = {"message": {"content": json.dumps(content_dict, ensure_ascii=False)}}
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    mock_post.side_effect = [
+        make_response({"call_type": "входящий", "topic": "тариф"}),
+        make_response({"total": 7, "is_ivr": False, "criteria": {}, "script_checklist": {}}),
+        make_response({"operator_name": "Наталья", "issues": [], "callback_needed": False}),
+        make_response({"category": "информация/консультация", "client_intent": "get_info",
+                        "sentiment": "neutral", "resolution_status": "resolved",
+                        "is_repeat_contact": False, "tags": []}),
+    ]
+
+    result = analyze_dialogue(sample_dialogue_text, prompts_dir)
+
+    assert "classification" in result
+    assert result["classification"]["category"] == "информация/консультация"
+    assert result["classification"]["client_intent"] == "get_info"
+    assert mock_post.call_count == 4
 
 
 # ── Тесты для call_cloud_llm (OpenRouter) ─────────────────────────────────

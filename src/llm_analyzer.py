@@ -233,6 +233,13 @@ def analyze_dialogue(
         user_message=user_message,
     )
 
+    logger.info("Классификация...")
+    classify_prompt = load_prompt(prompts_dir / "classify.md")
+    results["classification"] = call_llm(
+        system_prompt=classify_prompt,
+        user_message=user_message,
+    )
+
     # Пост-обработка: коррекция текста в LLM-ответах (Gravital → Гравител и т.д.)
     if profile:
         for key in results:
