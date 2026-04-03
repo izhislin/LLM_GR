@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}База знаний{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+.dash { font-family: 'Onest', sans-serif; padding: 24px 0; }
+.dash h1 { font-size: 1.5rem; font-weight: 700; color: #18181B; margin-bottom: 4px; }
+.dash-subtitle { color: #9999A8; font-size: 0.9rem; margin-bottom: 24px; }
+
+.kb-stats { display: flex; gap: 16px; margin-bottom: 24px; }
+.kb-stat { background: #fff; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #F0F0F5; }
+.kb-stat-value { font-size: 1.5rem; font-weight: 700; color: #18181B; }
+.kb-stat-label { font-size: 0.8rem; color: #9999A8; }
+
+.kb-filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.kb-filter-btn { font-family: inherit; padding: 6px 14px; border: 1px solid #E0E7FF; border-radius: 8px; background: #F6F6FC; color: #52525B; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+.kb-filter-btn:hover, .kb-filter-btn.active { background: #4F46E5; color: #fff; border-color: #4F46E5; }
+
+.kb-card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #F0F0F5; cursor: pointer; transition: border-color 0.15s; }
+.kb-card:hover { border-color: #A5B4FC; }
+.kb-card.expanded { border-color: #4F46E5; }
+
+.kb-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.kb-title { font-weight: 600; font-size: 0.95rem; color: #18181B; }
+.kb-badges { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+.kb-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.kb-freq { background: #EEF2FF; color: #4F46E5; }
+.kb-rate-high { background: #D1FAE5; color: #065F46; }
+.kb-rate-mid { background: #FEF3C7; color: #92400E; }
+.kb-rate-low { background: #FEE2E2; color: #991B1B; }
+
+.kb-cat { font-size: 0.8rem; color: #9999A8; margin-top: 4px; }
+
+.kb-body { margin-top: 12px; display: none; border-top: 1px solid #F0F0F5; padding-top: 12px; }
+.kb-card.expanded .kb-body { display: block; }
+
+.kb-section { margin-bottom: 10px; }
+.kb-section-title { font-size: 0.8rem; font-weight: 600; color: #52525B; margin-bottom: 4px; }
+.kb-section-text { font-size: 0.85rem; color: #3F3F46; line-height: 1.6; }
+
+.kb-calls { margin-top: 12px; }
+.kb-calls-title { font-size: 0.8rem; font-weight: 600; color: #52525B; margin-bottom: 8px; }
+.kb-call-item { display: flex; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid #F6F6FC; font-size: 0.82rem; }
+.kb-call-item a { color: #4F46E5; text-decoration: none; font-weight: 500; }
+.kb-call-item a:hover { text-decoration: underline; }
+.kb-call-meta { color: #9999A8; }
+
+.kb-empty { text-align: center; padding: 40px; color: #9999A8; }
+
+@media (max-width: 768px) { .kb-stats { flex-direction: column; } }
+</style>
+
+<div class="dash">
+    <h1>База знаний</h1>
+    <div class="dash-subtitle">Типовые проблемы и решения из звонков &mdash; домен {{ domain }}</div>
+
+    <div class="kb-stats" id="kb-stats"></div>
+    <div class="kb-filters" id="kb-filters"></div>
+    <div id="kb-list"></div>
+</div>
+
+<script>
+const DOMAIN = '{{ domain }}';
+let allEntries = [];
+let activeFilter = null;
+
+function el(tag, attrs, children) {
+    const e = document.createElement(tag);
+    if (attrs) {
+        for (const [k, v] of Object.entries(attrs)) {
+            if (k === 'className') e.className = v;
+            else if (k === 'onclick') e.addEventListener('click', v);
+            else e.setAttribute(k, v);
+        }
+    }
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(c => { if (c) e.appendChild(c); });
+    return e;
+}
+
+function rateClass(rate) {
+    if (rate >= 0.5) return 'kb-rate-high';
+    if (rate >= 0.25) return 'kb-rate-mid';
+    return 'kb-rate-low';
+}
+
+async function loadKB() {
+    allEntries = await fetch('/api/dashboard/knowledge?domain=' + DOMAIN).then(r => r.json());
+    renderStats();
+    renderFilters();
+    renderList(allEntries);
+}
+
+function renderStats() {
+    const container = document.getElementById('kb-stats');
+    const totalEntries = allEntries.length;
+    const totalCalls = allEntries.reduce((s, e) => s + e.frequency, 0);
+    const avgRate = allEntries.length
+        ? Math.round(allEntries.reduce((s, e) => s + (e.success_rate || 0), 0) / allEntries.length * 100)
+        : 0;
+    container.replaceChildren(
+        makeStat(totalEntries, 'записей'),
+        makeStat(totalCalls, 'звонков покрыто'),
+        makeStat(avgRate + '%', 'ср. решаемость'),
+    );
+}
+
+function makeStat(value, label) {
+    const div = el('div', {className: 'kb-stat'});
+    div.appendChild(el('div', {className: 'kb-stat-value'}, String(value)));
+    div.appendChild(el('div', {className: 'kb-stat-label'}, label));
+    return div;
+}
+
+function renderFilters() {
+    const cats = [...new Set(allEntries.map(e => e.category))];
+    const container = document.getElementById('kb-filters');
+    container.replaceChildren();
+
+    const allBtn = el('button', {className: 'kb-filter-btn active', onclick: () => filterBy(null)}, 'Все');
+    container.appendChild(allBtn);
+
+    cats.forEach(cat => {
+        container.appendChild(el('button', {className: 'kb-filter-btn', onclick: () => filterBy(cat)}, cat));
+    });
+}
+
+function filterBy(cat) {
+    activeFilter = cat;
+    document.querySelectorAll('.kb-filter-btn').forEach((b, i) => {
+        b.classList.toggle('active', cat === null ? i === 0 : b.textContent === cat);
+    });
+    const filtered = cat ? allEntries.filter(e => e.category === cat) : allEntries;
+    renderList(filtered);
+}
+
+function renderList(entries) {
+    const container = document.getElementById('kb-list');
+    container.replaceChildren();
+
+    if (!entries.length) {
+        container.appendChild(el('div', {className: 'kb-empty'}, 'Нет записей'));
+        return;
+    }
+
+    entries.forEach(entry => {
+        const card = el('div', {className: 'kb-card'});
+
+        // Header
+        const header = el('div', {className: 'kb-header'});
+        const left = document.createElement('div');
+        left.appendChild(el('div', {className: 'kb-title'}, (entry.subcategory || entry.category)));
+        left.appendChild(el('div', {className: 'kb-cat'}, entry.category));
+        header.appendChild(left);
+
+        const badges = el('div', {className: 'kb-badges'});
+        badges.appendChild(el('span', {className: 'kb-badge kb-freq'}, entry.frequency + ' звонков'));
+        const pct = Math.round((entry.success_rate || 0) * 100);
+        badges.appendChild(el('span', {className: 'kb-badge ' + rateClass(entry.success_rate || 0)}, 'решено ' + pct + '%'));
+        header.appendChild(badges);
+
+        card.appendChild(header);
+
+        // Body (hidden by default)
+        const body = el('div', {className: 'kb-body'});
+
+        const probSection = el('div', {className: 'kb-section'});
+        probSection.appendChild(el('div', {className: 'kb-section-title'}, 'Типичные проблемы'));
+        probSection.appendChild(el('div', {className: 'kb-section-text'}, entry.problem_description || '\u2014'));
+        body.appendChild(probSection);
+
+        const solSection = el('div', {className: 'kb-section'});
+        solSection.appendChild(el('div', {className: 'kb-section-title'}, 'Типичные решения'));
+        solSection.appendChild(el('div', {className: 'kb-section-text'}, entry.solution_description || '\u2014'));
+        body.appendChild(solSection);
+
+        // Calls container (lazy-loaded)
+        const callsDiv = el('div', {className: 'kb-calls'});
+        callsDiv.appendChild(el('div', {className: 'kb-calls-title'}, 'Примеры звонков'));
+        const callsList = el('div');
+        callsList.textContent = 'Загрузка...';
+        callsDiv.appendChild(callsList);
+        body.appendChild(callsDiv);
+
+        card.appendChild(body);
+
+        // Toggle
+        card.addEventListener('click', async function() {
+            const wasExpanded = card.classList.contains('expanded');
+            // Collapse all
+            document.querySelectorAll('.kb-card.expanded').forEach(c => c.classList.remove('expanded'));
+            if (!wasExpanded) {
+                card.classList.add('expanded');
+                // Lazy-load calls
+                if (callsList.textContent === 'Загрузка...') {
+                    try {
+                        const calls = await fetch('/api/dashboard/knowledge/' + entry.id + '/calls').then(r => r.json());
+                        callsList.replaceChildren();
+                        if (!calls.length) {
+                            callsList.textContent = 'Нет примеров';
+                        } else {
+                            calls.forEach(c => {
+                                const item = el('div', {className: 'kb-call-item'});
+                                const link = document.createElement('a');
+                                link.href = '/call/' + encodeURIComponent(c.id);
+                                link.textContent = (c.started_at || '').slice(0, 10);
+                                link.addEventListener('click', function(ev) { ev.stopPropagation(); });
+                                item.appendChild(link);
+                                item.appendChild(el('span', {className: 'kb-call-meta'}, (c.operator_name || '') + ' \u2022 ' + (c.client_number || '')));
+                                item.appendChild(el('span', null, c.topic || ''));
+                                callsList.appendChild(item);
+                            });
+                        }
+                    } catch(e) {
+                        callsList.textContent = 'Ошибка загрузки';
+                    }
+                }
+            }
+        });
+
+        container.appendChild(card);
+    });
+}
+
+loadKB();
+</script>
+{% endblock %}

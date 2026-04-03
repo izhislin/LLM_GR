@@ -234,6 +234,52 @@ def supervisor_script_checklist(
     return result
 
 
+# ── База знаний ──────────────────────────────────────────────────────────
+
+
+@router.get("/knowledge")
+def knowledge_list(domain: str):
+    """Список записей базы знаний."""
+    rows = _db.execute(
+        """SELECT id, category, subcategory, problem_description,
+                  solution_description, frequency, success_rate
+           FROM knowledge_base
+           WHERE domain = ?
+           ORDER BY frequency DESC""",
+        (domain,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.get("/knowledge/{kb_id}/calls")
+def knowledge_calls(kb_id: int, limit: int = Query(10, ge=1, le=50)):
+    """Примеры звонков для записи базы знаний."""
+    row = _db.execute(
+        "SELECT example_call_ids FROM knowledge_base WHERE id = ?",
+        (kb_id,),
+    ).fetchone()
+    if not row or not row["example_call_ids"]:
+        return []
+
+    import json as _json
+    call_ids = _json.loads(row["example_call_ids"])[:limit]
+    results = []
+    for cid in call_ids:
+        call = _db.execute(
+            """SELECT c.id, c.started_at, c.client_number, c.duration,
+                      COALESCE(c.operator_name, o.name) as operator_name,
+                      json_extract(p.result_json, '$.summary.topic') as topic
+               FROM calls c
+               JOIN processing p ON c.id = p.call_id
+               LEFT JOIN operators o ON c.domain = o.domain AND c.operator_extension = o.extension
+               WHERE c.id = ?""",
+            (cid,),
+        ).fetchone()
+        if call:
+            results.append(dict(call))
+    return results
+
+
 # ── Поиск ─────────────────────────────────────────────────────────────────
 
 
@@ -256,3 +302,9 @@ def business_dashboard_page(request: Request, domain: str = "gravitel.aicall.ru"
 def supervisor_dashboard_page(request: Request, domain: str = "gravitel.aicall.ru"):
     templates = Jinja2Templates(directory=str(_templates_dir))
     return templates.TemplateResponse("dashboard_supervisor.html", {"request": request, "domain": domain})
+
+
+@router.get("/kb", response_class=HTMLResponse)
+def knowledge_page(request: Request, domain: str = "gravitel.aicall.ru"):
+    templates = Jinja2Templates(directory=str(_templates_dir))
+    return templates.TemplateResponse("dashboard_knowledge.html", {"request": request, "domain": domain})
