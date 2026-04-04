@@ -77,6 +77,11 @@
     </div>
 
     <div class="chart-card" style="margin-bottom:24px">
+        <h3>Тренды по неделям</h3>
+        <canvas id="chart-trends" height="200"></canvas>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px">
         <h3>Клиенты в зоне риска</h3>
         <table class="risk-table" id="risk-table">
             <thead><tr><th>Клиент</th><th>Телефон</th><th>Звонков</th><th>Категория</th><th>Тренд</th><th>Риск</th></tr></thead>
@@ -94,7 +99,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
 const DOMAIN = '{{ domain }}';
-let catChart, sentChart;
+let catChart, sentChart, trendChart;
 const TREND_TEXT = {declining: '\u25BC ухудшается', stable: '\u2192 стабильно', improving: '\u25B2 улучшается'};
 
 function getFilters() {
@@ -128,15 +133,17 @@ function el(tag, attrs, children) {
 
 async function loadDashboard() {
     const q = getFilters();
-    const [kpis, cats, sent, risk] = await Promise.all([
+    const [kpis, cats, sent, risk, trends] = await Promise.all([
         fetch('/api/dashboard/business/kpis?' + q).then(r => r.json()),
         fetch('/api/dashboard/business/categories?' + q).then(r => r.json()),
         fetch('/api/dashboard/business/sentiment?' + q).then(r => r.json()),
         fetch('/api/dashboard/business/risk-clients?domain=' + DOMAIN).then(r => r.json()),
+        fetch('/api/dashboard/business/trends?domain=' + DOMAIN).then(r => r.json()),
     ]);
     renderKpis(kpis);
     renderCategories(cats);
     renderSentiment(sent);
+    renderTrends(trends);
     renderRisk(risk);
 }
 
@@ -177,6 +184,36 @@ function renderSentiment(d) {
         type: 'doughnut',
         data: { labels: ['Позитивный','Нейтральный','Негативный'], datasets: [{ data: [d.positive, d.neutral, d.negative], backgroundColor: ['#10D5D7','#A5B4FC','#EF4444'], borderWidth: 0, hoverOffset: 6 }] },
         options: { cutout: '60%', plugins: { legend: { position: 'bottom', labels: { font: { family: 'Onest' }, padding: 16 } } } }
+    });
+}
+
+function renderTrends(data) {
+    const ctx = document.getElementById('chart-trends');
+    if (trendChart) trendChart.destroy();
+    if (!data.length) return;
+
+    const weeks = data.map(d => d.week);
+    const calls = data.map(d => d.calls);
+    const scores = data.map(d => d.avg_score);
+    const negative = data.map(d => d.sentiment.negative || 0);
+
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: weeks,
+            datasets: [
+                { label: 'Звонков', data: calls, borderColor: '#4F46E5', backgroundColor: 'rgba(79,70,229,0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                { label: 'Ср. оценка', data: scores, borderColor: '#10D5D7', borderDash: [5,3], tension: 0.3, yAxisID: 'y1' },
+                { label: 'Негативных', data: negative, borderColor: '#EF4444', borderDash: [2,2], tension: 0.3, yAxisID: 'y' },
+            ],
+        },
+        options: {
+            plugins: { legend: { labels: { font: { family: 'Onest' } } } },
+            scales: {
+                y: { position: 'left', grid: { display: false }, title: { display: true, text: 'Количество' } },
+                y1: { position: 'right', min: 0, max: 10, grid: { drawOnChartArea: false }, title: { display: true, text: 'Оценка' } },
+            },
+        },
     });
 }
 

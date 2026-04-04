@@ -135,6 +135,64 @@ def business_sentiment(
     return counts
 
 
+@router.get("/business/trends")
+def business_trends(domain: str):
+    """Тренды по неделям: категории, sentiment, качество."""
+    rows = _db.execute(
+        """SELECT c.id, c.started_at, p.result_json
+           FROM calls c JOIN processing p ON c.id = p.call_id
+           WHERE c.domain = ? AND p.status = 'done' AND p.result_json IS NOT NULL
+           ORDER BY c.started_at""",
+        (domain,),
+    ).fetchall()
+
+    weeks: dict[str, dict] = {}
+    for row in rows:
+        result = json.loads(row["result_json"])
+        started = row["started_at"] or ""
+        if len(started) < 10:
+            continue
+        # ISO week
+        from datetime import datetime
+        try:
+            dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+            week_key = dt.strftime("%Y-W%W")
+        except (ValueError, TypeError):
+            continue
+
+        if week_key not in weeks:
+            weeks[week_key] = {"calls": 0, "categories": {}, "sentiment": {"positive": 0, "neutral": 0, "negative": 0}, "scores": []}
+
+        w = weeks[week_key]
+        w["calls"] += 1
+
+        cl = result.get("classification", {})
+        cat = cl.get("category", "другое")
+        w["categories"][cat] = w["categories"].get(cat, 0) + 1
+
+        sent = cl.get("sentiment", "neutral")
+        if sent in w["sentiment"]:
+            w["sentiment"][sent] += 1
+
+        score = result.get("quality_score", {}).get("total")
+        if score is not None:
+            w["scores"].append(score)
+
+    # Build response
+    result = []
+    for week_key in sorted(weeks.keys()):
+        w = weeks[week_key]
+        avg_score = round(sum(w["scores"]) / len(w["scores"]), 1) if w["scores"] else None
+        result.append({
+            "week": week_key,
+            "calls": w["calls"],
+            "categories": w["categories"],
+            "sentiment": w["sentiment"],
+            "avg_score": avg_score,
+        })
+    return result
+
+
 @router.get("/business/risk-clients")
 def business_risk_clients(domain: str):
     """Клиенты в зоне риска."""
@@ -249,6 +307,27 @@ def knowledge_list(domain: str):
         (domain,),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+@router.get("/knowledge/scenarios")
+def knowledge_scenarios(domain: str):
+    """Список сгенерированных сценариев."""
+    rows = _db.execute(
+        """SELECT id, category, scenario_name, typical_questions,
+                  recommended_script, diagnostic_steps, success_rate,
+                  auto_generated, approved
+           FROM knowledge_scenarios
+           WHERE domain = ?
+           ORDER BY category, scenario_name""",
+        (domain,),
+    ).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["typical_questions"] = json.loads(d["typical_questions"]) if d["typical_questions"] else []
+        d["diagnostic_steps"] = json.loads(d["diagnostic_steps"]) if d["diagnostic_steps"] else []
+        result.append(d)
+    return result
 
 
 @router.get("/knowledge/{kb_id}/calls")
