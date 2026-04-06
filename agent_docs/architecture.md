@@ -48,6 +48,7 @@
 | `src/analytics/client_profiles.py` | Профили клиентов, risk_level, sentiment_trend |
 | `src/analytics/search.py` | FTS5 полнотекстовый поиск по транскриптам |
 | `src/analytics/knowledge.py` | Batch-агрегация базы знаний (проблемы → решения) |
+| `src/web/routes/dashboard.py` | API дашбордов: KPIs, категории, тренды, операторы, KB, сценарии, поиск |
 
 ### Веб-интерфейс
 
