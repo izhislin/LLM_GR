@@ -9,6 +9,16 @@
 
 ## Записи
 
+### 2026-04-17 — Восстановление сервера после power-loss
+
+- **Инцидент:** Отключалось электропитание, сервер не стартовал автоматически (нет BIOS-опции Power-On-AC). После ручного старта кнопкой — зависание на boot (`FAILED openipmi.service` перекрывал `login:` prompt), затем логин прошёл штатно. Снаружи все DNAT-порты молчали.
+- **Корень проблемы:** DHCP выдал серверу новый IP `192.168.1.121` вместо прежнего `.108` — у MAC не было static lease. DNAT-правила MikroTik смотрели на `.108` → трафик уходил «в никуда», хотя ARP для `.108 → MAC` остался как static.
+- **Фикс сети:** В MikroTik создан static DHCP lease `60:CF:84:62:59:2C → 192.168.1.190` (новый базовый IP). Все DNAT-правила перенастроены с `.108` на `.190`: 16380, 42363–42368, 42370, 42371. Все 8 портов проверены извне — OK.
+- **Фикс редиректа ByVoice Portal (`:3200 → DNAT 42370`):** В `.env.production` был `NEXTAUTH_URL=http://212.24.45.138:42370` — Auth.js v5 жёстко редиректил все запросы на внешний URL, ломая доступ из LAN (`.190:3200`). Переменная закомментирована, оставлен `AUTH_TRUST_HOST=true` → Auth.js берёт origin из Host-заголовка. Редиректы теперь относительные, работает и из LAN, и снаружи. Backup: `web-client/.env.production.bak.20260417_162516`.
+- **Косметика:** `sudo systemctl mask openipmi.service` + `systemctl reset-failed` — у железа нет IPMI-контроллера, юнит падал при каждом старте. Теперь `systemctl --failed` пуст.
+- **TODO:** Включить в BIOS `Restore on AC Power Loss = Power On`, чтобы сервер стартовал сам после отключения питания.
+- **Документация:** `agent_docs/guides/server-access.md` обновлён — зафиксированы внутренний IP `.190`, MAC, static lease, порт 42370 → byvoice-portal:3200.
+
 ### 2026-04-04 — Улучшения аналитики: тренды, сценарии, переклассификация
 
 - **Cron:** Ежедневный batch `scripts/daily_analytics.py` в 03:00 — агрегация KB + пересчёт профилей клиентов. Настроен в crontab на сервере.
@@ -108,51 +118,4 @@
 - **VAD threshold:** `VAD_NEW_CHUNK_THRESHOLD=0.05` (было 0.2) — снижен порог для коротких фраз («да», «угу»).
 - **Тесты:** 144 passed (было 138, +3 db, +2 llm_analyzer, +1 transcriber assertion).
 - **GPU:** подготовлены инструкции для перевода Ollama на GPU (серверная задача).
-
-### 2026-03-13 — Деплой на AI Lab и доработка Web UI
-
-- **Деплой:** git init + fetch на сервере, установлены fastapi/uvicorn/apscheduler/python-dotenv/python-multipart
-- **`.env`:** настроен с реальным API-ключом Гравител, HF_TOKEN, отдельным webhook-ключом
-- **Polling:** 200 звонков загружено (107 pending, 92 skipped, 1 processing), 35 операторов, 8 отделов
-- **systemd:** user-level сервис `~/.config/systemd/user/ai-lab-web.service` + `loginctl enable-linger` (нет sudo)
-- **Basic Auth:** middleware в FastAPI (`WEB_USERNAME`/`WEB_PASSWORD`), `secrets.compare_digest`, исключения для `/webhook/` и `/metrics`
-- **Prometheus:** установлен `prometheus_client`, `start_metrics_server()` вызывается в FastAPI lifespan (не только CLI)
-- **Webhook-ключ:** разделён на `GRAVITEL_API_KEY` (CRM) и `GRAVITEL_WEBHOOK_KEY` (АТС), добавлен `webhook_key_env` в `DomainConfig`
-- **Web UI:**
-  - Переписан `app.js:loadCallDetail()`: качество → цветные бары с комментариями, резюме → форматированный текст, данные → карточки, транскрипт → цветовая разметка оператор/клиент
-  - Поддержка двух форматов `quality_score` от LLM: плоский (`greeting: 3`) и вложенный (`criteria.greeting.score: 8`)
-  - Cache busting (`?v=2`) в `base.html`
-- **Коррекция LLM-вывода:** `_correct_llm_output()` рекурсивно применяет text_corrector к строкам в JSON (Gravital → Гравител)
-- **Имена операторов:** LEFT JOIN с таблицей operators в `list_calls()`, fallback через `get_operator_name()` в API detail
-- **Коммиты:** 7 (4e335b6..fbd0dd3)
-- **Доступ:** `http://212.24.45.138:42367/` (MikroTik 42367→8080), логин `ailab`
-
-### 2026-03-13 — Web API интеграция (полная реализация)
-
-- **Архитектура:** монолит FastAPI + asyncio + ThreadPoolExecutor. Webhook-приёмник + polling каждые 10 мин
-- **Новые модули (8 файлов):**
-  - `src/domain_config.py`: датаклассы `CallFilters`, `DomainConfig`, загрузка из `config/domains.yaml`
-  - `src/gravitel_api.py`: async HTTP-клиент для CRM API Гравител (history, accounts, groups, download)
-  - `src/call_filter.py`: фильтрация звонков по длительности, типу, наличию записи
-  - `src/db.py`: SQLite-слой (5 таблиц, 16 CRUD-функций, `check_same_thread=False` для FastAPI)
-  - `src/web/routes/webhook.py`: POST `/webhook/{domain}/history` (auth, dedup, filtering)
-  - `src/web/routes/api.py`: REST API (`/api/calls`, `/api/stats`, `/api/domains`, etc.)
-  - `src/worker.py`: `CallWorker` — скачивание записей + запуск pipeline
-  - `src/web/app.py`: FastAPI lifespan, scheduler loop, directory sync, manual sync endpoint
-- **Web UI:** Jinja2 + vanilla CSS/JS (base.html, index.html, call_detail.html, style.css, app.js)
-  - Таблица звонков с фильтрами (домен, направление, статус, даты), пагинация, автообновление 30 сек
-  - Страница деталей: метаданные, оценка качества, резюме, извлечённые данные, транскрипт
-- **Тесты:** 139 тестов (было 34), все проходят. Покрытие: DB (41), API client (12), filter (9), webhook (6), REST API (8), worker (3), integration (2), domain config (11), остальное (47)
-- **Config:** `config/domains.yaml`, `.env.example`, обновлён `.gitignore`
-- **Дизайн:** `docs/plans/2026-03-13-web-api-integration-design.md`
-- **План:** `docs/plans/2026-03-13-web-api-integration-plan.md`
-
-### 2026-03-13 — Модуль базы данных (SQLite)
-
-- Создан `src/db.py`: синхронный SQLite-слой для хранения звонков, обработки, операторов и отделов
-- 5 таблиц: `domains`, `calls`, `processing`, `operators`, `departments`
-- 3 индекса: `idx_calls_domain`, `idx_calls_started`, `idx_processing_status`
-- 16 функций: `init_db`, `insert_call` (INSERT OR IGNORE), `get_call`, `list_calls` (JOIN + фильтры + пагинация), `get_calls_count`, `insert_processing`, `get_processing`, `update_processing_status` (auto started_at/completed_at/retry_count), `get_pending_calls`, `get_retryable_calls`, `upsert_operator`, `get_operator_name`, `list_operators`, `upsert_department`, `list_departments`, `update_domain_poll_time`
-- Создан `tests/test_web/test_db.py`: 37 тестов (TDD), покрытие: init, CRUD, дубликаты, фильтры, пагинация, статусы, retry, операторы, отделы, поллинг доменов
-- Все функции проверены через ручной интеграционный тест (pytest недоступен локально на macOS)
 

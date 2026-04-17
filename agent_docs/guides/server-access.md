@@ -12,12 +12,20 @@ ssh ai-lab
 
 | Параметр | Значение |
 |---|---|
-| Хост | `212.24.45.138` |
-| Порт | `16380` |
+| Хост (внешний) | `212.24.45.138` |
+| Порт (внешний SSH) | `16380` |
+| Внутренний IP (LAN) | `192.168.1.190` |
+| MAC (eno1) | `60:CF:84:62:59:2C` |
 | Пользователь | `aiadmin` |
 | Hostname сервера | `gravitel-ai-lab` |
 | SSH-ключ | `~/.ssh/id_ed25519_ailab` (без passphrase) |
 | ОС | Ubuntu 24.04 (OpenSSH 9.6) |
+
+### Фиксация внутреннего IP
+
+Внутренний IP `192.168.1.190` прибит **static DHCP lease** на MikroTik за MAC-адресом сервера. Это исключает смену IP при перезагрузках / power-loss: `IP → DHCP Server → Leases` содержит запись `60:CF:84:62:59:2C → 192.168.1.190` в статусе `static`.
+
+Если IP когда-либо изменится снова, **все DNAT-правила в таблице ниже станут нерабочими одновременно** — симптом будет «ICMP до `212.24.45.138` идёт, но все TCP-порты в таймаут». Проверка: `ip -br a` на сервере, затем `IP → DHCP Server → Leases` в MikroTik.
 
 ## SSH-конфиг (`~/.ssh/config`)
 
@@ -71,18 +79,25 @@ EOF
 | nvidia_gpu_exporter | `9835` | `nvidia_gpu_exporter` | Установлен (v1.4.1, .deb), active |
 | pipeline metrics | `8000` | — (поднимается пайплайном) | При запуске `python -m src.pipeline` |
 | Ollama metrics | `11434` | — | Не поддерживается в v0.17.7, порт зарезервирован |
+| AI Lab Web (FastAPI) | `8080` | `ai-lab-web.service` (user) | Active, `uvicorn src.web.app:app` |
+| TTS API (Qwen3-TTS 1.7B) | `8090` | `tts-api.service` (user) | Active, venv_tts |
 | Open WebUI | `8091` | Docker container `open-webui` | `docker compose up -d` из `~/01_LLM_GR` |
+| ByVoice Portal (Next.js) | `3200` | `byvoice-portal.service` (user) | Active, Next.js 15 + Auth.js v5 |
 
 ### Маппинг портов MikroTik → сервер
 
+Все правила DNAT имеют `to-addresses=192.168.1.190`. При смене внутреннего IP правила надо обновлять одновременно во всех строках.
+
 | Внешний порт | → Внутренний порт | Сервис |
 |---|---|---|
+| `16380` | → `22` | SSH |
 | `42363` | → `9100` | node_exporter |
 | `42364` | → `9835` | nvidia_gpu_exporter |
 | `42365` | → `8000` | pipeline metrics |
 | `42366` | → `11434` | Ollama metrics (зарезервирован) |
 | `42367` | → `8080` | AI Lab Web (FastAPI) |
 | `42368` | → `8090` | TTS API (venv_tts, модель 1.7B) |
+| `42370` | → `3200` | ByVoice Portal (Next.js) |
 | `42371` | → `8091` | Open WebUI |
 
 ### Prometheus scrape config
@@ -119,8 +134,26 @@ scrape_configs:
 
 ## Примечания
 
-- IP статический (`212.24.45.138`).
+- Внешний IP статический (`212.24.45.138`). Внутренний LAN-IP прибит static lease (см. выше).
 - Парольный доступ: `sshpass -p '<пароль>' ssh -p 16380 -o PreferredAuthentications=password aiadmin@<IP>` (использовать только если ключ не работает).
 - На сервере в `authorized_keys` два ключа: `id_ed25519` (с passphrase, личный) и `id_ed25519_ailab` (без passphrase, для автоматизации).
 - CDN PyTorch (`download-r2.pytorch.org`) таймаутит с сервера. Для обновления PyTorch — скачивать wheel локально на Mac и передавать по SCP.
 - GigaAM v3 при установке из GitHub требует `--no-deps` (ограничение `torch<2.9` не совместимо с nightly).
+
+## Восстановление после power-loss
+
+После отключения питания сервер **не стартует автоматически** — нужна кнопка Power вручную. TODO: включить в BIOS `Restore on AC Power Loss = Power On`, после этого восстановление будет автоматическим.
+
+При загрузке `FAILED openipmi.service` перекрывает `login:` prompt, создавая впечатление зависания. Это косметика — нажать Enter и вводить логин. Сам юнит замаскирован (`systemctl mask openipmi.service`), но сообщение в boot-логе остаётся.
+
+Если после старта снаружи все TCP-порты в таймаут, а ICMP до `212.24.45.138` отвечает:
+1. Локально на сервере: `ip -br a` — убедиться, что `eno1` = `192.168.1.190/24`. Если другой IP, см. следующий пункт.
+2. На MikroTik: `IP → DHCP Server → Leases` — убедиться, что запись `60:CF:84:62:59:2C → 192.168.1.190` в статусе `static`. Если съехала, исправить и на сервере выполнить `sudo dhclient -r eno1 && sudo dhclient eno1` или `sudo reboot`.
+
+## ByVoice Portal (`byvoice-portal`)
+
+Next.js 15 + Auth.js v5, запущен user-systemd юнитом `byvoice-portal.service` из `~/byvoice-portal/web-client/`. Настройки — `.env.production`.
+
+Ключевая деталь: **`NEXTAUTH_URL` должен быть закомментирован**, иначе Auth.js жёстко редиректит на указанный URL и доступ с LAN (`192.168.1.190:3200`) ломается — всех пользователей выкидывает на внешний `212.24.45.138:42370`. Вместо этого включён `AUTH_TRUST_HOST=true` — Auth.js использует заголовок `Host` из запроса, редиректы становятся относительными и работают с обоих origin-ов.
+
+Ребилд (`npm run build`) при правке `.env.production` **не нужен** — server-side переменные читаются в рантайме, достаточно `systemctl --user restart byvoice-portal`.
